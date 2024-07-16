@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  db:
+    build: .
+    environment:
+      POSTGRES_DB: preventdb
+      POSTGRES_USER: preventuser
+      POSTGRES_PASSWORD: kukkakaalisinappi
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./tabledef.sql:/docker-entrypoint-initdb.d/tabledef.sql
+    ports:
+      - "5432:5432"
+
+volumes:
+  db_data:
