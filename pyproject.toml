@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prevent"
+dynamic = ["version"]
+description = 'Precipitation event database and visualization'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Jussi Tiira", email = "jussi.tiira@fmi.fi" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "leafmap",
+  "geopandas",
+  "pycrs",
+  "osmnx",
+]
+
+[project.urls]
+#Documentation = "https://github.com/Jussi Tiira/prevent#readme"
+#Issues = "https://github.com/Jussi Tiira/prevent/issues"
+#Source = "https://github.com/Jussi Tiira/prevent"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/prevent tests}"
+
+[tool.coverage.run]
+source_pkgs = ["prevent", "tests"]
+branch = true
+parallel = true
+omit = [
+]
+
+[tool.coverage.paths]
+prevent = ["src/prevent", "*/prevent/src/prevent"]
+tests = ["tests", "*/prevent/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
