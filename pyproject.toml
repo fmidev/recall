@@ -25,10 +25,15 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "folium",
   "flask",
   "flask_sqlalchemy",
+  "flask_migrate",
+  "Flask-WTF",
+  "bootstrap-flask",
   "geoalchemy2",
   "requests",
+  "psycopg2-binary",
 ]
 
 [project.urls]

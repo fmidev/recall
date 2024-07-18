@@ -3,36 +3,20 @@
 <head>
     <title>Prevent - Main View</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
-        #map { height: 400px; }
+        #map { height: 100vh; width: 80%; float: left; }
+        #side-panel { width: 20%; float: right; background-color: #f1f1f1; padding: 20px; }
+        #events-list { margin-bottom: 20px; }
+        #toggle-button { margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div id="events-list">
-        <!-- Events will be populated here by JavaScript -->
+    <div id="map" style="height: 100vh; width: 80%; float: left;">
+        {{ map_html|safe }}
     </div>
-    <div id="map"></div>
-
-    <script>
-        // Initialize the map
-        var map = L.map('map').setView([60.1699, 24.9384], 13); // Example coordinates
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        // Fetch and display events
-        fetch('/events')
-            .then(response => response.json())
-            .then(data => {
-                const eventsList = document.getElementById('events-list');
-                data.forEach(event => {
-                    const listItem = document.createElement('div');
-                    listItem.textContent = `${event.description} (${event.start_time} - ${event.end_time})`;
-                    eventsList.appendChild(listItem);
-                });
-            });
-    </script>
+    <div id="side-panel">
+        <!-- Side panel content -->
+        
+    </div>
 </body>
 </html>

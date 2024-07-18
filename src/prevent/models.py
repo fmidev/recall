@@ -6,37 +6,35 @@ from geoalchemy2 import Geography
 Base = declarative_base()
 
 class Radar(Base):
-    __tablename__ = 'Radar'
+    __tablename__ = 'radar'
     radar_id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
-    location = Column(Geography(geometry_type='POINT', srid=3067))
+    location = Column(Geography(geometry_type='POINT', srid=4326))
     description = Column(Text)
     events = relationship("Event", back_populates="radar")
 
 class Event(Base):
-    __tablename__ = 'Event'
+    __tablename__ = 'event'
     event_id = Column(Integer, primary_key=True)
-    radar_id = Column(Integer, ForeignKey('Radar.radar_id'), nullable=False)
+    radar_id = Column(Integer, ForeignKey('radar.radar_id'), nullable=False)
     start_time = Column(TIMESTAMP, nullable=False)
     end_time = Column(TIMESTAMP, nullable=False)
     description = Column(Text)
     radar = relationship("Radar", back_populates="events")
-    tags = relationship("Tag", secondary="Event_Tag", back_populates="events")
+    tags = relationship("Tag", secondary="event_tag", back_populates="events")
 
 class Tag(Base):
-    __tablename__ = 'Tag'
+    __tablename__ = 'tag'
     tag_id = Column(Integer, primary_key=True)
     name = Column(String(255), unique=True, nullable=False)
     description = Column(Text)
-    events = relationship("Event", secondary="Event_Tag", back_populates="tags")
+    events = relationship("Event", secondary="event_tag", back_populates="tags")
 
 class EventTag(Base):
-    __tablename__ = 'EventTag'
-    event_id = Column(Integer, ForeignKey('Event.event_id'), primary_key=True)
-    tag_id = Column(Integer, ForeignKey('Tag.tag_id'), primary_key=True)
+    __tablename__ = 'event_tag'
+    event_id = Column(Integer, ForeignKey('event.event_id'), primary_key=True)
+    tag_id = Column(Integer, ForeignKey('tag.tag_id'), primary_key=True)
 
 # Engine and session creation for demonstration (adjust the connection string as needed)
-engine = create_engine('postgresql://preventuser:kukkakaalisinappi@localhost/preventdb')
+engine = create_engine('postgresql://preventuser:kukkakaalisinappi@localhost/preventdb', echo=True)
 Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
-session = Session()
