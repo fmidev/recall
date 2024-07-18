@@ -1,8 +1,12 @@
+-- Description: SQL script to define the database schema
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 -- Create Radar table
 CREATE TABLE Radar (
     radar_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    location GEOGRAPHY(Point, 4326), -- Assuming use of PostGIS for geospatial data
+    location GEOGRAPHY(Point, 4326),
     description TEXT
 );
 
@@ -23,8 +27,8 @@ CREATE TABLE Tag (
     description TEXT
 );
 
--- Create Event_Tag junction table for many-to-many relationship between Event and Tag
-CREATE TABLE Event_Tag (
+-- Create EventTag junction table for many-to-many relationship between Event and Tag
+CREATE TABLE EventTag (
     event_id INT NOT NULL,
     tag_id INT NOT NULL,
     PRIMARY KEY (event_id, tag_id),

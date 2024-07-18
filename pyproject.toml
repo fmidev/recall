@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -25,16 +25,19 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "leafmap",
-  "geopandas",
-  "pycrs",
-  "osmnx",
+  "flask",
+  "flask_sqlalchemy",
+  "geoalchemy2",
+  "requests",
 ]
 
 [project.urls]
 #Documentation = "https://github.com/Jussi Tiira/prevent#readme"
 #Issues = "https://github.com/Jussi Tiira/prevent/issues"
 #Source = "https://github.com/Jussi Tiira/prevent"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.envs.types]
 extra-dependencies = [
