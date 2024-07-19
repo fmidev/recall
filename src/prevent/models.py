@@ -1,7 +1,7 @@
 from typing import List, Optional
 import datetime
 
-from sqlalchemy import Column, String, Text, ForeignKey
+from sqlalchemy import Column, String, Text, ForeignKey, event
 from sqlalchemy.orm import relationship, DeclarativeBase, mapped_column, Mapped
 from geoalchemy2 import Geography
 from flask_sqlalchemy import SQLAlchemy
@@ -15,14 +15,16 @@ db = SQLAlchemy(model_class=Base)
 
 
 class Radar(db.Model):
+    __tablename__ = 'radar'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(10))
+    name: Mapped[str] = mapped_column(String(10), unique=True)
     location: Mapped[Geography] = mapped_column(Geography(geometry_type='POINT', srid=4326))
     description: Mapped[Optional[str]] = Column(Text)
     events: Mapped[List['Event']] = relationship(back_populates="radar")
 
 
 class Event(db.Model):
+    __tablename__ = 'event'
     id: Mapped[int] = mapped_column(primary_key=True)
     radar_id: Mapped[int] = mapped_column(ForeignKey('radar.id'))
     start_time: Mapped[datetime.datetime]
@@ -33,6 +35,7 @@ class Event(db.Model):
 
 
 class Tag(db.Model):
+    __tablename__ = 'tag'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), unique=True)
     description: Mapped[str] = Column(Text)
@@ -44,3 +47,18 @@ class EventTag(db.Model):
     event_id: Mapped[int] = mapped_column(ForeignKey('event.id'), primary_key=True)
     tag_id: Mapped[int] = mapped_column(ForeignKey('tag.id'), primary_key=True)
 
+
+@event.listens_for(Radar.__table__, 'after_create')
+def insert_radars(*args, **kws):
+    radars = []
+    radars.append(Radar(name='fikor', location='POINT(21.64 60.13)', description='Korppoo'))
+    for radar in radars:
+        db.session.add(radar)
+
+
+@event.listens_for(Radar.__table__, 'after_create')
+def insert_basic_tags(*args, **kws):
+    tags = []
+    tags.append(Tag(name='squall line', description='A line of thunderstorms that can form along and/or ahead of a cold front.'))
+    for tag in tags:
+        db.session.add(tag)
