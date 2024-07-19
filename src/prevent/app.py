@@ -6,15 +6,20 @@ from flask_wtf import CSRFProtect
 from sqlalchemy.orm import scoped_session, sessionmaker
 import folium
 
-from prevent.models import Event, engine
+from prevent.models import Event, db
 from prevent.downloader import download_single_radar_dbz
 
 
 app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://preventuser:kukkakaalisinappi@localhost/preventdb'
+db.init_app(app)
 app.secret_key = 'aijvnianwr'
 bootstrap = Bootstrap5(app)
 csrf = CSRFProtect(app)
 
+# Create the database tables
+with app.app_context():
+    db.create_all()
 
 # Create a scoped session
 Session = scoped_session(sessionmaker(bind=engine))

@@ -8,7 +8,6 @@ services:
       POSTGRES_PASSWORD: kukkakaalisinappi
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db/tabledef.sql:/docker-entrypoint-initdb.d/tabledef.sql:Z
     ports:
       - "5432:5432"
 
