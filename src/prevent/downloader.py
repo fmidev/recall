@@ -41,8 +41,21 @@ def download_single_radar_dbz(radar_name, time, cache_dir=DEFAULT_CACHE_DIR):
     os.makedirs(cache_dir, exist_ok=True)
     filename = f'{radar_name}_{time.strftime("%Y%m%dT%H%M%S")}.tif'
     filepath = os.path.join(cache_dir, filename)
+    print(f'Downloading radar data to {filepath}')
     if not os.path.exists(filepath):
         data = fetch_single_radar_dbz(radar_name, time)
         with open(filepath, 'wb') as f:
             f.write(data)
     return filepath
+
+
+def download_event_data(event):
+    start_time = event.start_time
+    end_time = event.end_time
+    # times every 5 minutes from start to end
+    times = [start_time + datetime.timedelta(minutes=5*i) for i in range(int((end_time-start_time).total_seconds()/60/5))]
+    radar = event.radar
+    radar_name = radar.name
+    files = []
+    for time in times:
+        files.append(download_single_radar_dbz(radar_name, time))
