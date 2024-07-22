@@ -25,23 +25,32 @@ with app.app_context():
     sample_events(db)
 
 
-@app.route('/')
+def get_coords(radar):
+    lat = db.session.scalar(radar.location.ST_Y())
+    lon = db.session.scalar(radar.location.ST_X())
+    return lat, lon
+
+
+@app.route('/', methods=['GET', 'POST'])
 def main_view():
     # Create a map centered at Finland
-    start_coords = (61.9241, 25.7482)
-    folium_map = folium.Map(location=start_coords, zoom_start=10)
-
+    coords = (61.9241, 25.7482)
+    zoom = 6
     form = EventSelectionForm()
-
     # Optionally, add markers or layers
-
-    # Render the map to HTML
-    map_html = folium_map._repr_html_()
-
     events = db.session.query(Event).all()
     form.event.choices = [(event.id, event.description) for event in events]
-
-    return render_template('event_view.html', form=form, map_html=map_html)
+    event = None
+    if form.validate_on_submit():
+        event_id = form.event.data
+        event = db.session.query(Event).get(event_id)
+        # set the map center to the radar location
+        coords = get_coords(event.radar)
+        zoom = 9
+    folium_map = folium.Map(location=coords, zoom_start=zoom)
+    # Render the map to HTML
+    map_html = folium_map._repr_html_()
+    return render_template('event_view.html', form=form, map_html=map_html, event=event)
 
 
 @app.route('/single_radar', methods=['GET'])
