@@ -2,16 +2,10 @@ from typing import List, Optional
 import datetime
 
 from sqlalchemy import Column, String, Text, ForeignKey, event
-from sqlalchemy.orm import relationship, DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import relationship, mapped_column, Mapped
 from geoalchemy2 import Geography
-from flask_sqlalchemy import SQLAlchemy
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-db = SQLAlchemy(model_class=Base)
+from prevent.database.connection import db
 
 
 class Radar(db.Model):

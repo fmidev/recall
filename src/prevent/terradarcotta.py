@@ -22,20 +22,6 @@ KEY_DESCRIPTIONS = {
 }
 DB_URI = 'postgresql://preventuser:kukkakaalisinappi@localhost/terracotta'
 
-driver = tc.get_driver(DB_URI)
-config = Config(signature_version=UNSIGNED, region_name='eu-west-1')
-s3 = boto3.resource('s3', config=config)
-bucket = s3.Bucket(S3_BUCKET)
-
-# sanity 
-try:
-    assert driver.key_names == KEYS
-except InvalidDatabaseError:
-    driver.create(KEYS, key_descriptions=KEY_DESCRIPTIONS)
-    assert driver.key_names == KEYS
-
-available_datasets = driver.get_datasets()
-
 
 def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
     return f's3://{S3_BUCKET}/{timestamp.strftime("%Y/%m/%d")}/{radar}/{timestamp.strftime("%Y%m%d%H%M")}_{radar}_{product}.tif'
@@ -44,6 +30,19 @@ def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
 def insert(timestamp: datetime.datetime, radar: str, product: str):
     """Insert radar metadata into the terracotta database."""
     product = product.lower()
+    #
+    driver = tc.get_driver(DB_URI)
+    config = Config(signature_version=UNSIGNED, region_name='eu-west-1')
+    s3 = boto3.resource('s3', config=config)
+    bucket = s3.Bucket(S3_BUCKET)
+    # sanity 
+    try:
+        assert driver.key_names == KEYS
+    except InvalidDatabaseError:
+        driver.create(KEYS, key_descriptions=KEY_DESCRIPTIONS)
+        assert driver.key_names == KEYS
+    available_datasets = driver.get_datasets()
+    #
     s3path = get_s3path(timestamp, radar, product)
     tstr = timestamp.strftime('%Y%m%d%H%M')
     keys = (tstr, radar, product)

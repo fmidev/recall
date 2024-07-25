@@ -3,7 +3,7 @@ import datetime
 
 from sqlalchemy import select
 
-from prevent.models import Event, Radar, Tag
+from prevent.database.models import Event, Radar, Tag
 from prevent.terradarcotta import insert_event as sync_insert_event
 
 
@@ -11,11 +11,6 @@ def get_coords(db, radar):
     lat = db.session.scalar(radar.location.ST_Y())
     lon = db.session.scalar(radar.location.ST_X())
     return lat, lon
-
-
-@celery.task
-def insert_event(event):
-    sync_insert_event(event)
 
 
 def add_event(db, radar, start_time, end_time, description, tags=None):

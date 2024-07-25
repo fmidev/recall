@@ -18,7 +18,7 @@ services:
       - "6379:6379"
   celery_worker:
     build: .
-    image: prevent_celery_worker:latest
+    image: prevent:latest
     command: celery -A prevent.dapp.celery_app worker --loglevel=info
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -28,7 +28,7 @@ services:
       - redis
   web:
     build: .
-    image: prevent_web:latest
+    image: prevent:latest
     ports:
       - "8050:8050"
     environment:

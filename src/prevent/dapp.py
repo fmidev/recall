@@ -5,8 +5,10 @@ from dash.long_callback import CeleryLongCallbackManager
 import dash_leaflet as dl
 from celery import Celery
 
-from prevent.models import Event, db
-from prevent.db import get_coords
+from prevent.database.models import Event
+from prevent.database.queries import get_coords
+from prevent.database.connection import db
+from prevent.terradarcotta import insert_event as sync_insert_event
 
 
 celery_app = Celery('prevent', broker='redis://localhost:6379/0')
@@ -14,6 +16,11 @@ callman = CeleryLongCallbackManager(celery_app)
 
 app = dash.Dash(__name__, long_callback_manager=callman)
 server = app.server  # Expose Flask server for deployments
+
+
+@celery_app.task
+def insert_event(event):
+    sync_insert_event(event)
 
 
 def create_event_dropdown():
