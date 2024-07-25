@@ -25,16 +25,19 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "folium",
-  "flask",
+  "gunicorn",
+  "celery[redis]",
+  "terracotta",
+  "boto3",
+  "dash",
   "flask_sqlalchemy",
   "flask_migrate",
-  "Flask-WTF",
-  "bootstrap-flask",
   "geoalchemy2",
-  "requests",
   "psycopg2-binary",
 ]
+
+[project.scripts]
+prevent = "prevent.dapp:main"
 
 [project.urls]
 #Documentation = "https://github.com/Jussi Tiira/prevent#readme"

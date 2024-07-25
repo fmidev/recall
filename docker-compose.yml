@@ -2,6 +2,7 @@ version: '3.8'
 services:
   db:
     build: ./db
+    image: prevent_db:latest
     environment:
       POSTGRES_DB: preventdb
       POSTGRES_USER: preventuser
@@ -11,6 +12,29 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:Z
     ports:
       - "5432:5432"
-
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+  celery_worker:
+    build: .
+    image: prevent_celery_worker:latest
+    command: celery -A prevent.dapp.celery_app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+  web:
+    build: .
+    image: prevent_web:latest
+    ports:
+      - "8050:8050"
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+      - redis
 volumes:
   db_data:

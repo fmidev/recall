@@ -43,6 +43,7 @@ def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
 
 def insert(timestamp: datetime.datetime, radar: str, product: str):
     """Insert radar metadata into the terracotta database."""
+    product = product.lower()
     s3path = get_s3path(timestamp, radar, product)
     tstr = timestamp.strftime('%Y%m%d%H%M')
     keys = (tstr, radar, product)
@@ -57,3 +58,13 @@ def insert(timestamp: datetime.datetime, radar: str, product: str):
             except CRSError:
                 print('CRSError, skipping')
 
+
+def insert_event(event):
+    """Insert all radar metadata for an event into the terracotta database."""
+    start_time = event.start_time
+    end_time = event.end_time
+    times = [start_time + datetime.timedelta(minutes=5*i) for i in range(int((end_time-start_time).total_seconds()/60/5))]
+    radar = event.radar
+    radar_name = radar.name
+    for time in times:
+        insert(time, radar_name, 'dbzh')
