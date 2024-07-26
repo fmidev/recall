@@ -11,8 +11,10 @@ from prevent.database.models import Event, Radar, Tag
 from prevent.database.queries import get_coords
 from prevent.database.connection import db
 from prevent.terradarcotta import insert_event as sync_insert_event
+from prevent.secrets import FMI_COMMERCIAL_API_KEY
 
 
+WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
 DATABASE_URI = os.environ.get('DATABASE_URI', 'postgresql://preventuser:kukkakaalisinappi@localhost/prevent')
 
 
@@ -42,9 +44,9 @@ def create_layout():
             html.Div(id='selected-event')
         ], style={'width': '30%', 'display': 'inline-block'}),
         html.Div([
-            dl.Map([dl.TileLayer()],
-                id='map',
-                style={'width': '100%', 'height': '80vh'})
+            dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png')],
+                id='map', center=(61.9241, 25.7482), zoom=6,
+                style={'width': '100%', 'height': '98vh'})
         ], style={'width': '70%', 'display': 'inline-block'})
     ])
 
@@ -143,7 +145,7 @@ def update_map(event_id):
 
 
 def main(**kws):
-    app.run_server(debug=True, host='0.0.0.0', **kws)
+    app.run_server(host='0.0.0.0', **kws)
 
 
 if __name__ == '__main__':
