@@ -14,6 +14,7 @@ from prevent.terradarcotta import insert_event as sync_insert_event
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
 
 
+DEFAULT_COORDS = (61.9241, 25.7482)
 WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
 DATABASE_URI = os.environ.get('DATABASE_URI', 'postgresql://preventuser:kukkakaalisinappi@localhost/prevent')
 
@@ -131,17 +132,16 @@ def update_selected_event(event_id, _):
 
 
 @app.callback(
-    Output('map', 'center'),
-    Output('map', 'zoom'),
+    Output('map', 'viewport'),
     Input('event-dropdown', 'value')
 )
 def update_map(event_id):
     if event_id:
         event = db.session.query(Event).get(event_id)
         lat, lon = get_coords(db, event.radar)  # Assuming get_coords is defined elsewhere
-        return (lat, lon), 9
+        return dict(center=(lat, lon), zoom=8, transition='flyTo')
     else:
-        return (61.9241, 25.7482), 6
+        return dict(center=(61.9241, 25.7482), zoom=6, transition='flyTo')
 
 
 def main(**kws):
