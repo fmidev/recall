@@ -1,7 +1,5 @@
 """Ingest GeoTIFF files from S3 into a terracotta database."""
 
-import os
-import re
 import datetime
 
 import rasterio

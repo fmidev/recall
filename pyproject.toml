@@ -31,6 +31,7 @@ dependencies = [
   "terracotta",
   "boto3",
   "dash",
+  "sqlalchemy-utils",
   "flask_sqlalchemy",
   "flask_migrate",
   "geoalchemy2",
