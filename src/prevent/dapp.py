@@ -1,16 +1,11 @@
 import os
-import time
 import datetime
 
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash import Dash, dcc, html, Input, Output
 from dash.long_callback import CeleryLongCallbackManager
 import dash_leaflet as dl
 from celery import Celery
-from sqlalchemy import create_engine, select
-from sqlalchemy_utils import database_exists, create_database
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import select
 
 from prevent.database.models import Event, Radar, Tag
 from prevent.database.queries import get_coords
@@ -21,55 +16,33 @@ from prevent.terradarcotta import insert_event as sync_insert_event
 DATABASE_URI = os.environ.get('DATABASE_URI', 'postgresql://preventuser:kukkakaalisinappi@localhost/prevent')
 
 
-def ensure_database_exists(uri, retries=5, delay=5):
-    """Ensure that the database exists by creating it if it does not."""
-    engine = create_engine(uri)
-    created = False
-    attempt = 0
-    while attempt < retries:
-        try:
-            if not database_exists(engine.url):
-                create_database(engine.url)
-            break
-        except OperationalError as e:
-            attempt += 1
-            if attempt < retries:
-                print(f"Database connection failed. Retrying in {delay} seconds... (Attempt {attempt}/{retries})")
-                time.sleep(delay)
-            else:
-                print(f"Failed to connect to the database after {retries} attempts.")
-                raise e
-    return created
-
-
 def create_app():
-    db_created = ensure_database_exists(DATABASE_URI)
     celery_app = Celery('prevent', broker='redis://localhost:6379/0', backend='redis://localhost:6379/1')
     callman = CeleryLongCallbackManager(celery_app)
-    app = dash.Dash(__name__, long_callback_manager=callman)
+    app = Dash(__name__, long_callback_manager=callman)
     server = app.server
     server.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
     db.init_app(server)
-    if db_created:
-        with server.app_context():
-            initial_db_setup()
     return app, server, celery_app
 
 
 def initial_db_setup():
-    db.create_all()
-    db.session.commit()
-    sample_events(db)
+    print('Setting up database')
+    with server.app_context():
+        db.create_all()
+        db.session.commit()
+        sample_events(db)
 
 
 def create_layout():
     return html.Div([
+        dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
         html.Div([
             dcc.Dropdown(id='event-dropdown'),
             html.Div(id='selected-event')
         ], style={'width': '30%', 'display': 'inline-block'}),
         html.Div([
-            dl.Map([dl.TileLayer(), dl.Marker(position=(61.9241, 25.7482), id="marker")],
+            dl.Map([dl.TileLayer()],
                 id='map',
                 style={'width': '100%', 'height': '80vh'})
         ], style={'width': '70%', 'display': 'inline-block'})
@@ -85,7 +58,7 @@ def add_event(db, radar, start_time, end_time, description, tags=None):
         end_time=end_time,
         description=description
     )
-    insert_event(event)
+    #insert_event(event)
     db.session.add(event)
     db.session.commit()
     return event
@@ -120,10 +93,22 @@ def insert_event(event):
 
 
 @app.callback(
-    Output('event-dropdown', 'options'),
-    [Input('event-dropdown', 'id')]
+    Output('startup-interval', 'disabled'),
+    Input('startup-interval', 'n_intervals')
 )
-def populate_dropdown(_):
+def run_initial_db_setup(n_intervals):
+    """Run initial database setup when the app starts."""
+    if n_intervals == 0:
+        initial_db_setup()
+    return True
+
+
+@app.callback(
+    Output('event-dropdown', 'options'),
+    Input('event-dropdown', 'id'),
+    Input('startup-interval', 'disabled')
+)
+def populate_dropdown(_, __):
     events = db.session.query(Event).all()
     if not events:
         events = sample_events(db)
@@ -132,28 +117,29 @@ def populate_dropdown(_):
 
 @app.callback(
     Output('selected-event', 'children'),
-    [Input('event-dropdown', 'value')]
+    Input('event-dropdown', 'value'),
+    Input('startup-interval', 'disabled')
 )
-def update_selected_event(event_id):
+def update_selected_event(event_id, _):
     if event_id:
         event = db.session.query(Event).get(event_id)
-        lat, lon = get_coords(event.radar)  # Assuming get_coords is defined elsewhere
         return f"Selected Event: {event.description}"
     else:
         return "Select an event"
 
 
 @app.callback(
-    [Output('map', 'center'), Output('map', 'zoom'), Output('selected-event', 'children')],
-    [Input('event-dropdown', 'value')]
+    Output('map', 'center'),
+    Output('map', 'zoom'),
+    Input('event-dropdown', 'value')
 )
 def update_map(event_id):
     if event_id:
         event = db.session.query(Event).get(event_id)
-        lat, lon = get_coords(event.radar)  # Assuming get_coords is defined elsewhere
-        return (lat, lon), 9, f"Selected Event: {event.description}"
+        lat, lon = get_coords(db, event.radar)  # Assuming get_coords is defined elsewhere
+        return (lat, lon), 9
     else:
-        return (61.9241, 25.7482), 6, "Select an event"
+        return (61.9241, 25.7482), 6
 
 
 def main(**kws):

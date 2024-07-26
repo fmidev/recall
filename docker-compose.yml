@@ -34,6 +34,7 @@ services:
       - "8050:8050"
     environment:
       - PYTHONUNBUFFERED=1
+      - DASH_DEBUG=true
       - DATABASE_URI=postgresql://preventuser:kukkakaalisinappi@db:5432/preventdb
     depends_on:
       - db
