@@ -4,12 +4,13 @@ services:
     build: ./db
     image: prevent_db:latest
     environment:
-      POSTGRES_DB: preventdb
-      POSTGRES_USER: preventuser
-      POSTGRES_PASSWORD: kukkakaalisinappi
+      POSTGRES_MULTIPLE_DATABASES: terracotta,preventdb
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:Z
+      - ./db/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/multibase.sh:Z
     ports:
       - "5432:5432"
   redis:
@@ -23,7 +24,8 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - DATABASE_URI=postgresql://preventuser:kukkakaalisinappi@db:5432/preventdb
+      - PREVENT_DB_URI=postgresql://postgres:postgres@db:5432/preventdb
+      - TC_DB_URI=postgresql://postgres:postgres@db:5432/terracotta
     depends_on:
       - db
       - redis
@@ -35,7 +37,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DASH_DEBUG=true
-      - DATABASE_URI=postgresql://preventuser:kukkakaalisinappi@db:5432/preventdb
+      - PREVENT_DB_URI=postgresql://postgres:postgres@db:5432/preventdb
+      - TC_DB_URI=postgresql://postgres:postgres@db:5432/terracotta
     depends_on:
       - db
       - redis

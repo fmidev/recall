@@ -54,5 +54,7 @@ def insert_radars(*args, **kws):
 def insert_basic_tags(*args, **kws):
     tags = []
     tags.append(Tag(name='squall line', description='A line of thunderstorms that can form along and/or ahead of a cold front.'))
+    tags.append(Tag(name='rain', description='Precipitation in the form of liquid water drops with diameters greater than 0.5 millimetres.'))
+    tags.append(Tag(name='convective', description='A type of weather system that is characterized by vertical motion.'))
     for tag in tags:
         db.session.add(tag)

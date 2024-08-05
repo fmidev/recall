@@ -1,5 +1,6 @@
 """Ingest GeoTIFF files from S3 into a terracotta database."""
 
+import os
 import datetime
 
 import rasterio
@@ -18,7 +19,7 @@ KEY_DESCRIPTIONS = {
     'radar': 'Radar site',
     'product': 'Product type'
 }
-DB_URI = 'postgresql://preventuser:kukkakaalisinappi@localhost/terracotta'
+DB_URI = os.environ.get('TC_DB_URI', 'postgresql://postgres:postgres@localhost:5432/terracotta')
 
 
 def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
@@ -27,7 +28,7 @@ def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
 
 def insert(timestamp: datetime.datetime, radar: str, product: str):
     """Insert radar metadata into the terracotta database."""
-    product = product.lower()
+    product = product.upper()
     #
     driver = tc.get_driver(DB_URI)
     config = Config(signature_version=UNSIGNED, region_name='eu-west-1')
@@ -37,7 +38,7 @@ def insert(timestamp: datetime.datetime, radar: str, product: str):
     try:
         assert driver.key_names == KEYS
     except InvalidDatabaseError:
-        driver.create(KEYS, key_descriptions=KEY_DESCRIPTIONS)
+        driver.meta_store._initialize_database(KEYS, key_descriptions=KEY_DESCRIPTIONS)
         assert driver.key_names == KEYS
     available_datasets = driver.get_datasets()
     #
@@ -64,4 +65,9 @@ def insert_event(event):
     radar = event.radar
     radar_name = radar.name
     for time in times:
-        insert(time, radar_name, 'dbzh')
+        for product in ('DBZH', 'DBZ-1'):
+            try:
+                insert(time, radar_name, product)
+                break
+            except Exception as e:
+                print(e)

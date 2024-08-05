@@ -16,7 +16,7 @@ from prevent.secrets import FMI_COMMERCIAL_API_KEY
 
 DEFAULT_COORDS = (61.9241, 25.7482)
 WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
-DATABASE_URI = os.environ.get('DATABASE_URI', 'postgresql://preventuser:kukkakaalisinappi@localhost/prevent')
+DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
 
 
 def create_app():
@@ -45,7 +45,8 @@ def create_layout():
             html.Div(id='selected-event')
         ], style={'width': '30%', 'display': 'inline-block'}),
         html.Div([
-            dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png')],
+            dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
+                    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),],
                 id='map', center=(61.9241, 25.7482), zoom=6,
                 style={'width': '100%', 'height': '98vh'})
         ], style={'width': '70%', 'display': 'inline-block'})
@@ -61,7 +62,7 @@ def add_event(db, radar, start_time, end_time, description, tags=None):
         end_time=end_time,
         description=description
     )
-    #insert_event(event)
+    insert_event(event)
     db.session.add(event)
     db.session.commit()
     return event
@@ -73,14 +74,14 @@ def sample_events(db):
         return
     # add squall line event to fikor radar 2024-07-17 09:30:00 to 2024-07-17 12:00:00 UTC
     fikor = db.session.execute(select(Radar).filter_by(name="fikor")).scalar_one()
-    squall_line = db.session.execute(select(Tag).filter_by(name="squall line")).scalar_one()
+    squall_line = db.session.execute(select(Tag).filter_by(name="rain")).scalar_one()
     events = []
     events.append(add_event(
         db,
         radar=fikor,
-        start_time=datetime.datetime(2024, 7, 17, 9, 30, 0),
-        end_time=datetime.datetime(2024, 7, 17, 12, 0, 0),
-        description='Squall line over the coast of Korppoo',
+        start_time=datetime.datetime(2023, 8, 28, 9, 0, 0),
+        end_time=datetime.datetime(2023, 8, 28, 12, 0, 0),
+        description='Low pressure system',
         tags=[squall_line]
     ))
     return events
