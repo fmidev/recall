@@ -3,6 +3,7 @@ import datetime
 
 from dash import Dash, dcc, html, Input, Output
 from dash.long_callback import CeleryLongCallbackManager
+from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 from celery import Celery
 from sqlalchemy import select
@@ -17,10 +18,12 @@ from prevent.secrets import FMI_COMMERCIAL_API_KEY
 DEFAULT_COORDS = (61.9241, 25.7482)
 WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 
 
 def create_app():
-    celery_app = Celery('prevent', broker='redis://localhost:6379/0', backend='redis://localhost:6379/1')
+    celery_app = Celery('prevent', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
     callman = CeleryLongCallbackManager(celery_app)
     app = Dash(__name__, long_callback_manager=callman)
     server = app.server
@@ -91,14 +94,15 @@ app, server, celery_app = create_app()
 app.layout = create_layout()
 
 
-@celery_app.task
 def insert_event(event):
     sync_insert_event(event)
 
 
-@app.callback(
-    Output('startup-interval', 'disabled'),
-    Input('startup-interval', 'n_intervals')
+@app.long_callback(
+    output=Output('startup-interval', 'disabled'),
+    inputs=[Input('startup-interval', 'n_intervals')],
+    running=[(Output('event-dropdown', 'disabled'), True, False),
+             (Output('selected-event', 'children'), 'Initializing events. This may take a while.', 'Ready.')]
 )
 def run_initial_db_setup(n_intervals):
     """Run initial database setup when the app starts."""
@@ -108,14 +112,15 @@ def run_initial_db_setup(n_intervals):
 
 
 @app.callback(
-    Output('event-dropdown', 'options'),
-    Input('event-dropdown', 'id'),
-    Input('startup-interval', 'disabled')
+    output=Output('event-dropdown', 'options'),
+    inputs=[Input('event-dropdown', 'id'),
+            Input('startup-interval', 'disabled')]
 )
 def populate_dropdown(_, __):
     events = db.session.query(Event).all()
     if not events:
-        events = sample_events(db)
+        print('No events found')
+        raise PreventUpdate
     return [{'label': event.description, 'value': event.id} for event in events]
 
 
