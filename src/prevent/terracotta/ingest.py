@@ -44,7 +44,11 @@ def insert(timestamp: datetime.datetime, radar: str, product: str):
     #
     s3path = get_s3path(timestamp, radar, product)
     tstr = timestamp.strftime('%Y%m%d%H%M')
-    keys = (tstr, radar, product)
+    if 'DBZ' in product:
+        product_key = 'DBZH'
+    else:
+        product_key = product
+    keys = (tstr, radar, product_key)
     if keys in available_datasets:
         print('Skipping', s3path)
         return

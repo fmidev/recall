@@ -11,7 +11,8 @@ from sqlalchemy import select
 from prevent.database.models import Event, Radar, Tag
 from prevent.database.queries import get_coords
 from prevent.database.connection import db
-from prevent.terradarcotta import insert_event as sync_insert_event
+from prevent.terracotta.ingest import insert_event
+from prevent.terracotta.client import get_singleband_url
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
 
 
@@ -49,7 +50,8 @@ def create_layout():
         ], style={'width': '30%', 'display': 'inline-block'}),
         html.Div([
             dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-                    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),],
+                    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),
+                    dl.TileLayer(id="tc", opacity=0.5)],
                 id='map', center=(61.9241, 25.7482), zoom=6,
                 style={'width': '100%', 'height': '98vh'})
         ], style={'width': '70%', 'display': 'inline-block'})
@@ -75,27 +77,22 @@ def sample_events(db):
     events_table_empty = db.session.execute(select(Event)).scalar_one_or_none() is None
     if not events_table_empty:
         return
-    # add squall line event to fikor radar 2024-07-17 09:30:00 to 2024-07-17 12:00:00 UTC
     fikor = db.session.execute(select(Radar).filter_by(name="fikor")).scalar_one()
-    squall_line = db.session.execute(select(Tag).filter_by(name="rain")).scalar_one()
+    rain = db.session.execute(select(Tag).filter_by(name="rain")).scalar_one()
     events = []
     events.append(add_event(
         db,
         radar=fikor,
-        start_time=datetime.datetime(2023, 8, 28, 9, 0, 0),
-        end_time=datetime.datetime(2023, 8, 28, 12, 0, 0),
+        start_time=datetime.datetime(2023, 8, 28, 10, 0, 0),
+        end_time=datetime.datetime(2023, 8, 28, 11, 0, 0),
         description='Low pressure system',
-        tags=[squall_line]
+        tags=[rain]
     ))
     return events
 
 
 app, server, celery_app = create_app()
 app.layout = create_layout()
-
-
-def insert_event(event):
-    sync_insert_event(event)
 
 
 @app.long_callback(
@@ -109,6 +106,22 @@ def run_initial_db_setup(n_intervals):
     if n_intervals == 0:
         initial_db_setup()
     return True
+
+
+@app.callback(
+    Output("tc", "url"),
+    Input('event-dropdown', 'value')
+)
+def update_url(event_id):
+    if not event_id:
+        raise PreventUpdate
+    event = db.session.query(Event).get(event_id)
+    timestamp = event.start_time
+    radar_name = event.radar.name
+    product = 'DBZH'
+    url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[1,255]')
+    print(url)
+    return url
 
 
 @app.callback(
@@ -144,7 +157,7 @@ def update_selected_event(event_id, _):
 def update_map(event_id):
     if event_id:
         event = db.session.query(Event).get(event_id)
-        lat, lon = get_coords(db, event.radar)  # Assuming get_coords is defined elsewhere
+        lat, lon = get_coords(db, event.radar)
         return dict(center=(lat, lon), zoom=8, transition='flyTo')
     else:
         return dict(center=(61.9241, 25.7482), zoom=6, transition='flyTo')
