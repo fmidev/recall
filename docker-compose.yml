@@ -17,6 +17,16 @@ services:
     image: "redis:alpine"
     ports:
       - "6379:6379"
+  terracotta:
+    build: ./terracotta
+    image: terracotta:latest
+    environment:
+      TC_DRIVER_PATH: postgresql://postgres:postgres@db:5432/terracotta
+      TC_PORT: 8088
+    ports:
+      - "8088:8088"
+    depends_on:
+      - db
   celery_worker:
     build: .
     image: prevent:latest
@@ -29,6 +39,7 @@ services:
     depends_on:
       - db
       - redis
+      - terracotta
   web:
     build: .
     image: prevent:latest
@@ -45,5 +56,6 @@ services:
       - db
       - redis
       - celery_worker
+      - terracotta
 volumes:
   db_data:
