@@ -114,7 +114,7 @@ def run_initial_db_setup(n_intervals):
 )
 def update_url(event_id):
     if not event_id:
-        raise PreventUpdate
+        return ''
     event = db.session.query(Event).get(event_id)
     timestamp = event.start_time
     radar_name = event.radar.name
