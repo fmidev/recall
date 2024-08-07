@@ -1,3 +1,5 @@
+"""Dash app for visualizing radar case studies."""
+
 import os
 
 from dash import Dash, dcc, html, Input, Output
@@ -68,7 +70,8 @@ def run_initial_db_setup(n_intervals):
     Output("tc", "url"),
     Input('event-dropdown', 'value')
 )
-def update_url(event_id):
+def update_radar_url(event_id):
+    """Update the radar image URL based on the selected event."""
     if not event_id:
         return ''
     event = db.session.query(Event).get(event_id)
@@ -86,11 +89,17 @@ def update_url(event_id):
             Input('startup-interval', 'disabled')]
 )
 def populate_dropdown(_, __):
+    """Populate the event dropdown with events from the database."""
     events = db.session.query(Event).all()
     if not events:
         print('No events found')
         raise PreventUpdate
-    return [{'label': event.description, 'value': event.id} for event in events]
+    # Label is the event start date and radar name
+    options = []
+    for event in events:
+        label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}"
+        options.append({'label': label, 'value': event.id})
+    return options
 
 
 @app.callback(
@@ -99,6 +108,7 @@ def populate_dropdown(_, __):
     Input('startup-interval', 'disabled')
 )
 def update_selected_event(event_id, _):
+    """Update the selected event text based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
         return f"Selected Event: {event.description}"
@@ -110,7 +120,8 @@ def update_selected_event(event_id, _):
     Output('map', 'viewport'),
     Input('event-dropdown', 'value')
 )
-def update_map(event_id):
+def update_map_coordinates(event_id):
+    """Update the map viewport based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
         lat, lon = get_coords(db, event.radar)
