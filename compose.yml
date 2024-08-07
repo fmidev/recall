@@ -30,7 +30,9 @@ services:
     depends_on:
       - db
   celery_worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: prevent:latest
     command: celery -A prevent.dapp.celery_app worker --loglevel=info
     environment:
@@ -43,13 +45,14 @@ services:
       - redis
       - terracotta
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: prevent:latest
     ports:
       - "8050:8050"
     environment:
       - PYTHONUNBUFFERED=1
-      - DASH_DEBUG=true
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - PREVENT_DB_URI=postgresql://postgres:postgres@db:5432/preventdb
