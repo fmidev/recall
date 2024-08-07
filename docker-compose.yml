@@ -22,6 +22,7 @@ services:
     image: terracotta:latest
     environment:
       TC_DRIVER_PATH: postgresql://postgres:postgres@db:5432/terracotta
+      TC_RASTER_CACHE_SIZE: 1027604480
       TC_PORT: 8088
       AWS_NO_SIGN_REQUEST: YES
     ports:
