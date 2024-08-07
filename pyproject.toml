@@ -35,6 +35,7 @@ dependencies = [
   "flask_migrate",
   "geoalchemy2",
   "psycopg2-binary",
+  "dash-bootstrap-components",
 ]
 
 [project.scripts]

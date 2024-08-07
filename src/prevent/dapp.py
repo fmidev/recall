@@ -6,6 +6,7 @@ from dash import Dash, dcc, html, Input, Output
 from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
+import dash_bootstrap_components as dbc
 from celery import Celery
 
 from prevent.database.models import Event
@@ -13,6 +14,7 @@ from prevent.database.queries import get_coords, initial_db_setup
 from prevent.database.connection import db
 from prevent.terracotta.client import get_singleband_url
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
+from prevent.aios import PlaybackSliderAIO
 
 
 DEFAULT_COORDS = (61.9241, 25.7482)
@@ -25,7 +27,14 @@ CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localho
 def create_app():
     celery_app = Celery('prevent', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
     callman = CeleryLongCallbackManager(celery_app)
-    app = Dash(__name__, long_callback_manager=callman)
+    app = Dash(
+        __name__, 
+        long_callback_manager=callman,
+        external_stylesheets=[
+            dbc.themes.BOOTSTRAP,
+            dbc.icons.FONT_AWESOME
+        ]
+    )
     server = app.server
     server.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
     db.init_app(server)
@@ -33,20 +42,27 @@ def create_app():
 
 
 def create_layout():
-    return html.Div([
+    return dbc.Container([
         dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
-        html.Div([
-            dcc.Dropdown(id='event-dropdown'),
-            html.Div(id='selected-event')
-        ], style={'width': '30%', 'display': 'inline-block'}),
-        html.Div([
-            dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-                    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),
-                    dl.TileLayer(id="tc", opacity=0.5)],
-                id='map', center=(61.9241, 25.7482), zoom=6,
-                style={'width': '100%', 'height': '98vh'})
-        ], style={'width': '70%', 'display': 'inline-block'})
-    ])
+        dbc.Row([
+            dbc.Col([
+                dcc.Dropdown(id='event-dropdown'),
+                html.Div(id='selected-event'),
+                PlaybackSliderAIO(
+                    aio_id='playback',
+                    slider_props={'min': 0, 'max': 10, 'step': 1, 'value': 0},
+                    button_props={'className': 'float-left'}
+                )
+            ], lg=4),
+            dbc.Col([
+                dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
+                        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),
+                        dl.TileLayer(id="tc", opacity=0.5)],
+                    id='map', center=(61.9241, 25.7482), zoom=6,
+                    style={'width': '100%', 'height': '98vh'})
+            ])
+        ])
+    ], fluid=True)
 
 
 app, server, celery_app = create_app()
