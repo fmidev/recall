@@ -5,10 +5,9 @@ from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 from celery import Celery
-from prevent.database.queries import sample_events
 
 from prevent.database.models import Event
-from prevent.database.queries import get_coords
+from prevent.database.queries import get_coords, initial_db_setup
 from prevent.database.connection import db
 from prevent.terracotta.client import get_singleband_url
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
@@ -29,14 +28,6 @@ def create_app():
     server.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
     db.init_app(server)
     return app, server, celery_app
-
-
-def initial_db_setup():
-    print('Setting up database')
-    with server.app_context():
-        db.create_all()
-        db.session.commit()
-        sample_events(db)
 
 
 def create_layout():
@@ -69,7 +60,7 @@ app.layout = create_layout()
 def run_initial_db_setup(n_intervals):
     """Run initial database setup when the app starts."""
     if n_intervals == 0:
-        initial_db_setup()
+        initial_db_setup(db, server)
     return True
 
 
@@ -84,7 +75,7 @@ def update_url(event_id):
     timestamp = event.start_time
     radar_name = event.radar.name
     product = 'DBZH'
-    url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[1,255]')
+    url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
     print(url)
     return url
 
@@ -125,7 +116,7 @@ def update_map(event_id):
         lat, lon = get_coords(db, event.radar)
         return dict(center=(lat, lon), zoom=8, transition='flyTo')
     else:
-        return dict(center=(61.9241, 25.7482), zoom=6, transition='flyTo')
+        return dict(center=DEFAULT_COORDS, zoom=6, transition='flyTo')
 
 
 def main(**kws):

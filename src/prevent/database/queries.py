@@ -2,6 +2,7 @@
 
 import datetime
 
+from prevent.database.connection import db
 from sqlalchemy import select
 
 from prevent.terracotta.ingest import insert_event
@@ -45,3 +46,11 @@ def sample_events(db):
         tags=[rain]
     ))
     return events
+
+
+def initial_db_setup(db, server):
+    print('Setting up database')
+    with server.app_context():
+        db.create_all()
+        db.session.commit()
+        sample_events(db)
