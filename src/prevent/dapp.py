@@ -1,17 +1,15 @@
 import os
-import datetime
 
 from dash import Dash, dcc, html, Input, Output
 from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 from celery import Celery
-from sqlalchemy import select
+from prevent.database.queries import sample_events
 
-from prevent.database.models import Event, Radar, Tag
+from prevent.database.models import Event
 from prevent.database.queries import get_coords
 from prevent.database.connection import db
-from prevent.terracotta.ingest import insert_event
 from prevent.terracotta.client import get_singleband_url
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
 
@@ -56,39 +54,6 @@ def create_layout():
                 style={'width': '100%', 'height': '98vh'})
         ], style={'width': '70%', 'display': 'inline-block'})
     ])
-
-
-def add_event(db, radar, start_time, end_time, description, tags=None):
-    """Add an event to the database."""
-    event = Event(
-        radar=radar,
-        tags=tags,
-        start_time=start_time,
-        end_time=end_time,
-        description=description
-    )
-    insert_event(event)
-    db.session.add(event)
-    db.session.commit()
-    return event
-
-
-def sample_events(db):
-    events_table_empty = db.session.execute(select(Event)).scalar_one_or_none() is None
-    if not events_table_empty:
-        return
-    fikor = db.session.execute(select(Radar).filter_by(name="fikor")).scalar_one()
-    rain = db.session.execute(select(Tag).filter_by(name="rain")).scalar_one()
-    events = []
-    events.append(add_event(
-        db,
-        radar=fikor,
-        start_time=datetime.datetime(2023, 8, 28, 10, 0, 0),
-        end_time=datetime.datetime(2023, 8, 28, 11, 0, 0),
-        description='Low pressure system',
-        tags=[rain]
-    ))
-    return events
 
 
 app, server, celery_app = create_app()
