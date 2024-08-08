@@ -23,6 +23,10 @@ WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+BASEMAP = (
+    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
+    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
+)
 
 
 def create_app():
@@ -56,11 +60,7 @@ def create_layout():
                 )
             ], lg=4),
             dbc.Col([
-                dl.Map(children=[
-                        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-                        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),
-                        dl.TileLayer(id='ppi', url='', opacity=0.6)
-                    ],
+                dl.Map(children=BASEMAP,
                     id='map', center=(61.9241, 25.7482), zoom=6,
                     style={'width': '100%', 'height': '98vh'})
             ])
@@ -86,19 +86,24 @@ def run_initial_db_setup(n_intervals):
 
 
 @app.callback(
-    Output('ppi', 'url'),
+    Output('map', 'children'),
     Input('event-dropdown', 'value'),
     Input(PlaybackSliderAIO.ids.slider('playback'), 'value')
 )
 def update_radar_layers(event_id, itimestep):
     """Update the radar image URL based on the selected event."""
+    layers = list(BASEMAP)
     if not event_id:
-        return ''
+        return layers
     event = db.session.query(Event).get(event_id)
-    timestamp = list_scan_timestamps(event)[itimestep]
+    timestamps = list_scan_timestamps(event)
     radar_name = event.radar.name
     product = 'DBZH'
-    return get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
+    for i, timestamp in enumerate(timestamps):
+        url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
+        opacity = 0.6 if i == itimestep else 0.0
+        layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
+    return layers
 
 
 @app.callback(
