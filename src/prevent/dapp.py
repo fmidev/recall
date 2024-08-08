@@ -9,6 +9,7 @@ import dash_leaflet as dl
 import dash_bootstrap_components as dbc
 from celery import Celery
 
+from prevent.database import list_scan_timestamps
 from prevent.database.models import Event
 from prevent.database.queries import get_coords, initial_db_setup
 from prevent.database.connection import db
@@ -22,6 +23,10 @@ WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+BASEMAP = (
+    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
+    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
+)
 
 
 def create_app():
@@ -50,14 +55,12 @@ def create_layout():
                 html.Div(id='selected-event'),
                 PlaybackSliderAIO(
                     aio_id='playback',
-                    slider_props={'min': 0, 'max': 10, 'step': 1, 'value': 0},
+                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
                     button_props={'className': 'float-left'}
                 )
             ], lg=4),
             dbc.Col([
-                dl.Map([dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-                        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True),
-                        dl.TileLayer(id="tc", opacity=0.5)],
+                dl.Map(children=BASEMAP,
                     id='map', center=(61.9241, 25.7482), zoom=6,
                     style={'width': '100%', 'height': '98vh'})
             ])
@@ -83,20 +86,39 @@ def run_initial_db_setup(n_intervals):
 
 
 @app.callback(
-    Output("tc", "url"),
+    Output("map", "children"),
     Input('event-dropdown', 'value')
 )
-def update_radar_url(event_id):
+def update_radar_layers(event_id):
     """Update the radar image URL based on the selected event."""
+    layers = list(BASEMAP)
     if not event_id:
-        return ''
+        return layers
     event = db.session.query(Event).get(event_id)
-    timestamp = event.start_time
+    timestamps = list_scan_timestamps(event)
     radar_name = event.radar.name
     product = 'DBZH'
-    url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
-    print(url)
-    return url
+    for i, timestamp in enumerate(timestamps):
+        url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
+        layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=0.5))
+    return layers
+
+
+@app.callback(
+    Output(PlaybackSliderAIO.ids.slider('playback'), 'marks'),
+    Output(PlaybackSliderAIO.ids.slider('playback'), 'max'),
+    Input('event-dropdown', 'value')
+)
+def update_slider_marks(event_id):
+    """Update the slider marks based on the selected event."""
+    marks = {}
+    if not event_id:
+        return marks, 1
+    event = db.session.query(Event).get(event_id)
+    timestamps = list_scan_timestamps(event)
+    for i, timestamp in enumerate(timestamps):
+        marks[i] = {'label': timestamp.strftime('%H:%M')}
+    return marks, i
 
 
 @app.callback(
@@ -136,7 +158,7 @@ def update_selected_event(event_id, _):
     Output('map', 'viewport'),
     Input('event-dropdown', 'value')
 )
-def update_map_coordinates(event_id):
+def update_viewport(event_id):
     """Update the map viewport based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
