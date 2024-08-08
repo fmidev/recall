@@ -4,3 +4,11 @@ Simple web application to browse precipitation events and related weather radar 
 
 The events are tagged for interesting features, such as hail, birds, or heavy attenuation.
 Events can be filtered by tags. A radar animation is shown for each event.
+
+## Deployment
+
+### In development
+
+```console
+podman-compose -f compose.yml -f compose.dev.yml up
+```
