@@ -62,7 +62,7 @@ def create_layout():
             dbc.Col([
                 dl.Map(children=BASEMAP,
                     id='map', center=(61.9241, 25.7482), zoom=6,
-                    style={'width': '100%', 'height': '98vh'})
+                    style={'width': '100%', 'height': '100vh'})
             ])
         ])
     ], fluid=True)
