@@ -144,7 +144,8 @@ def populate_dropdown(_, __):
     # Label is the event start date and radar name
     options = []
     for event in events:
-        label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}"
+        tags = ', '.join([tag.name for tag in event.tags])
+        label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}: {tags}"
         options.append({'label': label, 'value': event.id})
     return options
 
