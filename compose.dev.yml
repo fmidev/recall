@@ -1,11 +1,18 @@
 services:
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: prevent:dev
+    volumes:
+      - ./src:/app/src:z
   web:
     build:
       context: .
       dockerfile: Dockerfile.dev
     image: prevent:dev
     volumes:
-      - ./src:/app/src:Z
+      - ./src:/app/src:z
     environment:
       DASH_DEBUG: true
       TC_LOGLEVEL: debug

@@ -19,11 +19,12 @@ from prevent.aios import PlaybackSliderAIO
 from prevent.visuals import cmap2hex
 
 
-DEFAULT_COORDS = (61.9241, 25.7482)
+DEFAULT_COORDS = (64.0, 26.5)
 WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
 BASEMAP = (
     dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
     dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
@@ -79,8 +80,8 @@ app.layout = create_layout()
     running=[(Output('event-dropdown', 'disabled'), True, False),
              (Output('selected-event', 'children'), 'Initializing events. This may take a while.', 'Ready.')]
 )
-def run_initial_db_setup(n_intervals):
-    """Run initial database setup when the app starts."""
+def run_initial_setup(n_intervals):
+    """Run initial setup when the app starts."""
     if n_intervals == 0:
         initial_db_setup(db, server)
     return True
@@ -102,7 +103,7 @@ def update_radar_layers(event_id, itimestep):
     radar_name = event.radar.name
     product = 'DBZH'
     for i, timestamp in enumerate(timestamps):
-        url = get_singleband_url(timestamp, radar_name, product, colormap=cmap, stretch_range='[0,255]')
+        url = get_singleband_url(timestamp, radar_name, product, colormap=cmap+'_cut', stretch_range='[0,255]')
         opacity = 0.7 if i == itimestep else 0.0
         layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
     layers.append(dl.Colorbar(id='cbar', colorscale=cmap2hex(cmap),

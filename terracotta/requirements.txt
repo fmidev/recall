@@ -1,3 +1,4 @@
 terracotta
 psycopg2-binary
 gunicorn
+matplotlib

@@ -9,6 +9,14 @@ Events can be filtered by tags. A radar animation is shown for each event.
 
 ### In development
 
+Build the dev version of the main container:
+
+```console
+podman build -f Dockerfile.dev -t prevent:dev .
+```
+
+Run the development version:
+
 ```console
 podman-compose -f compose.yml -f compose.dev.yml up
 ```
