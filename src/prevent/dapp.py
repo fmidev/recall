@@ -49,17 +49,33 @@ def create_app():
 
 
 def create_layout():
+    event_controls_tab_content = dbc.Card(
+        dbc.CardBody([
+            dcc.Dropdown(id='event-dropdown'),
+            html.Div(id='selected-event'),
+            PlaybackSliderAIO(
+                aio_id='playback',
+                slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
+                button_props={'className': 'float-left'}
+            )
+        ])
+    )
+    add_event_tab_content = dbc.Card(
+        dbc.CardBody([
+            
+        ])
+    )
+
+
+    tabs = dbc.Tabs([
+        dbc.Tab(event_controls_tab_content, label='Event Controls'),
+        dbc.Tab(add_event_tab_content, label='Add Event')
+    ])
     return dbc.Container([
         dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
         dbc.Row([
             dbc.Col([
-                dcc.Dropdown(id='event-dropdown'),
-                html.Div(id='selected-event'),
-                PlaybackSliderAIO(
-                    aio_id='playback',
-                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
-                    button_props={'className': 'float-left'}
-                )
+                tabs
             ], lg=4),
             dbc.Col([
                 dl.Map(children=BASEMAP,
