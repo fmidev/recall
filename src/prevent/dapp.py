@@ -16,6 +16,7 @@ from prevent.database.connection import db
 from prevent.terracotta.client import get_singleband_url
 from prevent.secrets import FMI_COMMERCIAL_API_KEY
 from prevent.aios import PlaybackSliderAIO
+from prevent.visuals import cmap2hex
 
 
 DEFAULT_COORDS = (61.9241, 25.7482)
@@ -92,6 +93,7 @@ def run_initial_db_setup(n_intervals):
 )
 def update_radar_layers(event_id, itimestep):
     """Update the radar image URL based on the selected event."""
+    cmap = 'gist_ncar'
     layers = list(BASEMAP)
     if not event_id:
         return layers
@@ -100,9 +102,11 @@ def update_radar_layers(event_id, itimestep):
     radar_name = event.radar.name
     product = 'DBZH'
     for i, timestamp in enumerate(timestamps):
-        url = get_singleband_url(timestamp, radar_name, product, colormap='gist_ncar', stretch_range='[0,255]')
-        opacity = 0.6 if i == itimestep else 0.0
+        url = get_singleband_url(timestamp, radar_name, product, colormap=cmap, stretch_range='[0,255]')
+        opacity = 0.7 if i == itimestep else 0.0
         layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
+    layers.append(dl.Colorbar(id='cbar', colorscale=cmap2hex(cmap),
+                              nTicks=5, width=20, height=250, min=-32, max=96, position='topright'))
     return layers
 
 
