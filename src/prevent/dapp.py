@@ -8,6 +8,7 @@ from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
 from celery import Celery
+from flask_migrate import Migrate
 
 from prevent.database import list_scan_timestamps
 from prevent.database.models import Event
@@ -45,7 +46,8 @@ def create_app():
     server = app.server
     server.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
     db.init_app(server)
-    return app, server, celery_app
+    migrate = Migrate(server, db)
+    return app, server, celery_app, migrate
 
 
 def create_layout():
@@ -86,7 +88,7 @@ def create_layout():
     ], fluid=True)
 
 
-app, server, celery_app = create_app()
+app, server, celery_app, migrate = create_app()
 app.layout = create_layout()
 
 

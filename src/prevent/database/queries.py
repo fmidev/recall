@@ -3,7 +3,6 @@
 import datetime
 
 from prevent.database.connection import db
-from sqlalchemy import select
 
 from prevent.terracotta.ingest import insert_event
 from prevent.database.models import Event, Radar, Tag
@@ -31,11 +30,11 @@ def add_event(db, radar, start_time, end_time, description, tags=None):
 
 
 def sample_events(db):
-    events_table_empty = db.session.execute(select(Event)).scalar_one_or_none() is None
+    events_table_empty = db.session.execute(db.select(Event)).scalar_one_or_none() is None
     if not events_table_empty:
         return
-    fikor = db.session.execute(select(Radar).filter_by(name="fikor")).scalar_one()
-    rain = db.session.execute(select(Tag).filter_by(name="rain")).scalar_one()
+    fikor = db.session.execute(db.select(Radar).filter_by(name="fikor")).scalar_one()
+    rain = db.session.execute(db.select(Tag).filter_by(name="rain")).scalar_one()
     events = []
     events.append(add_event(
         db,
