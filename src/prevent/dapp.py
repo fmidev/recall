@@ -2,7 +2,7 @@
 
 import os
 
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash, Input, Output
 from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
@@ -14,22 +14,17 @@ from prevent.database import list_scan_timestamps
 from prevent.database.models import Event, Tag
 from prevent.database.queries import get_coords, initial_db_setup
 from prevent.database.connection import db
+from prevent.layout import BASEMAP, create_layout
 from prevent.terracotta.client import get_singleband_url
-from prevent.secrets import FMI_COMMERCIAL_API_KEY
 from prevent.aios import PlaybackSliderAIO
 from prevent.visuals import cmap2hex
 
 
 DEFAULT_COORDS = (64.0, 26.5)
-WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
-BASEMAP = (
-    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
-)
 
 
 def create_app():
@@ -48,73 +43,6 @@ def create_app():
     db.init_app(server)
     migrate = Migrate(server, db)
     return app, server, celery_app, migrate
-
-
-def create_layout():
-    event_controls_tab_content = dbc.Card(
-        dbc.CardBody([
-            dcc.Dropdown(id='event-dropdown'),
-            html.Div(id='selected-event'),
-            PlaybackSliderAIO(
-                aio_id='playback',
-                slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
-                button_props={'className': 'float-left'}
-            )
-        ])
-    )
-    # event form using dbc.Form, WITHOUT using dbc.FormGroup
-    time_span_input = html.Div([
-        dbc.Row([
-            dbc.Label('Event time span', width='auto'),
-            dbc.Col([
-                dcc.DatePickerRange(
-                    id='date-span',
-                    start_date_placeholder_text='Start Date',
-                    end_date_placeholder_text='End Date',
-                    display_format='YYYY-MM-DD',
-                ),
-            ]),
-        ]),
-        dbc.Row([
-            dbc.Label('From', width='auto'),
-            dbc.Col([
-                dbc.Input(id='start-time', type='time', placeholder='Start Time'),
-            ]),
-            dbc.Label('to', width='auto'),
-            dbc.Col([
-                dbc.Input(id='end-time', type='time', placeholder='End Time'),
-            ])
-        ]),
-    ], className='mb-3')
-    description_input = html.Div([
-        dbc.Input(id='event-description', type='text', placeholder='Event description')
-    ], className='mb-3')
-    tag_picker = html.Div([
-        html.P('Tags'),
-        dcc.Dropdown(id='tag-picker', multi=True),
-    ], className='mb-3')
-    add_event_tab_content = dbc.Card(
-        dbc.CardBody([
-            dbc.Form([time_span_input, description_input, tag_picker]),
-        ])
-    )
-    tabs = dbc.Tabs([
-        dbc.Tab(event_controls_tab_content, label='Event Controls'),
-        dbc.Tab(add_event_tab_content, label='Add Event')
-    ])
-    return dbc.Container([
-        dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
-        dbc.Row([
-            dbc.Col([
-                tabs
-            ], lg=4),
-            dbc.Col([
-                dl.Map(children=BASEMAP,
-                    id='map', center=(61.9241, 25.7482), zoom=6,
-                    style={'width': '100%', 'height': '100vh'})
-            ])
-        ])
-    ], fluid=True)
 
 
 app, server, celery_app, migrate = create_app()
