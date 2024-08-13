@@ -70,6 +70,7 @@ services:
       TC_EXTRA_CMAP_FOLDER: /tmp/prevent/colormaps
     volumes:
       - /tmp/prevent:/tmp/prevent:z
+    restart: on-failure
     depends_on:
       - db
       - redis

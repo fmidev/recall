@@ -11,7 +11,7 @@ from celery import Celery
 from flask_migrate import Migrate
 
 from prevent.database import list_scan_timestamps
-from prevent.database.models import Event
+from prevent.database.models import Event, Tag
 from prevent.database.queries import get_coords, initial_db_setup
 from prevent.database.connection import db
 from prevent.terracotta.client import get_singleband_url
@@ -62,13 +62,42 @@ def create_layout():
             )
         ])
     )
+    # event form using dbc.Form, WITHOUT using dbc.FormGroup
+    time_span_input = html.Div([
+        dbc.Row([
+            dbc.Label('Event time span', width='auto'),
+            dbc.Col([
+                dcc.DatePickerRange(
+                    id='date-span',
+                    start_date_placeholder_text='Start Date',
+                    end_date_placeholder_text='End Date',
+                    display_format='YYYY-MM-DD',
+                ),
+            ]),
+        ]),
+        dbc.Row([
+            dbc.Label('From', width='auto'),
+            dbc.Col([
+                dbc.Input(id='start-time', type='time', placeholder='Start Time'),
+            ]),
+            dbc.Label('to', width='auto'),
+            dbc.Col([
+                dbc.Input(id='end-time', type='time', placeholder='End Time'),
+            ])
+        ]),
+    ], className='mb-3')
+    description_input = html.Div([
+        dbc.Input(id='event-description', type='text', placeholder='Event description')
+    ], className='mb-3')
+    tag_picker = html.Div([
+        html.P('Tags'),
+        dcc.Dropdown(id='tag-picker', multi=True),
+    ], className='mb-3')
     add_event_tab_content = dbc.Card(
         dbc.CardBody([
-            
+            dbc.Form([time_span_input, description_input, tag_picker]),
         ])
     )
-
-
     tabs = dbc.Tabs([
         dbc.Tab(event_controls_tab_content, label='Event Controls'),
         dbc.Tab(add_event_tab_content, label='Add Event')
@@ -153,7 +182,7 @@ def update_slider_marks(event_id):
     inputs=[Input('event-dropdown', 'id'),
             Input('startup-interval', 'disabled')]
 )
-def populate_dropdown(_, __):
+def populate_event_dropdown(_, __):
     """Populate the event dropdown with events from the database."""
     events = db.session.query(Event).all()
     if not events:
@@ -165,6 +194,20 @@ def populate_dropdown(_, __):
         tags = ', '.join([tag.name for tag in event.tags])
         label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}: {tags}"
         options.append({'label': label, 'value': event.id})
+    return options
+
+
+@app.callback(
+    Output('tag-picker', 'options'),
+    Input('startup-interval', 'disabled')
+)
+def populate_tag_picker(_):
+    """Populate the tag picker with tags from the database."""
+    tags = db.session.query(Tag).all()
+    if not tags:
+        print('No tags found')
+        raise PreventUpdate
+    options = [{'label': tag.name, 'value': tag.id} for tag in tags]
     return options
 
 
