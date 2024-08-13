@@ -1,8 +1,9 @@
 """Dash app for visualizing radar case studies."""
 
 import os
+import datetime
 
-from dash import Dash, Input, Output
+from dash import Dash, Input, Output, State
 from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
@@ -11,11 +12,12 @@ from celery import Celery
 from flask_migrate import Migrate
 
 from prevent.database import list_scan_timestamps
-from prevent.database.models import Event, Tag
-from prevent.database.queries import get_coords, initial_db_setup
+from prevent.database.models import Event, Tag, Radar
+from prevent.database.queries import get_coords, initial_db_setup, add_event
 from prevent.database.connection import db
 from prevent.layout import BASEMAP, create_layout
 from prevent.terracotta.client import get_singleband_url
+from prevent.terracotta.ingest import insert_event
 from prevent.aios import PlaybackSliderAIO
 from prevent.visuals import cmap2hex
 
@@ -60,6 +62,56 @@ def run_initial_setup(n_intervals):
     if n_intervals == 0:
         initial_db_setup(db, server)
     return True
+
+
+@app.long_callback(
+    output=(
+        Output('submit-event', 'n_clicks'),
+    ),
+    inputs=[
+        Input('submit-event', 'n_clicks'),
+        State('date-span', 'start_date'),
+        State('date-span', 'end_date'),
+        State('start-time', 'value'),
+        State('end-time', 'value'),
+        State('event-description', 'value'),
+        State('radar-picker', 'value'),
+        State('tag-picker', 'value'),
+    ],
+    running=[
+        (Output('submit-event', 'children'), 'Submitting event...', 'Submit'),
+    ]
+)
+def submit_event(n_clicks, start_date, end_date, start_time, end_time, description, radar_id, tag_ids):
+    """Submit an event to the database."""
+    if not n_clicks:
+        raise PreventUpdate
+    start_time = f"{start_date} {start_time}"
+    end_time = f"{end_date} {end_time}"
+    with server.app_context():
+        radar = db.session.query(Radar).get(radar_id)
+        tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+        start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')
+        end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M')
+        print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
+        add_event(db, radar, start_time, end_time, description, tags)
+    return 0
+
+
+@app.long_callback(
+    output=Output('ingest-all', 'n_clicks'),
+    inputs=[Input('ingest-all', 'n_clicks')],
+    running=[(Output('ingest-all', 'children'), 'Ingesting events...', 'Ingest all')]
+)
+def ingest_all_events(n_clicks):
+    """Ingest all events to the terracotta database."""
+    if not n_clicks:
+        raise PreventUpdate
+    with server.app_context():
+        events = db.session.query(Event).all()
+        for event in events:
+            insert_event(event)
+    return 0
 
 
 @app.callback(
@@ -107,10 +159,9 @@ def update_slider_marks(event_id):
 
 @app.callback(
     output=Output('event-dropdown', 'options'),
-    inputs=[Input('event-dropdown', 'id'),
-            Input('startup-interval', 'disabled')]
+    inputs=[Input('startup-interval', 'disabled')]
 )
-def populate_event_dropdown(_, __):
+def populate_event_dropdown(_):
     """Populate the event dropdown with events from the database."""
     events = db.session.query(Event).all()
     if not events:
@@ -122,6 +173,20 @@ def populate_event_dropdown(_, __):
         tags = ', '.join([tag.name for tag in event.tags])
         label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}: {tags}"
         options.append({'label': label, 'value': event.id})
+    return options
+
+
+@app.callback(
+    Output('radar-picker', 'options'),
+    Input('startup-interval', 'disabled')
+)
+def populate_radar_picker(_):
+    """Populate the radar picker with radars from the database."""
+    radars = db.session.query(Radar).all()
+    if not radars:
+        print('No radars found')
+        raise PreventUpdate
+    options = [{'label': radar.name, 'value': radar.id} for radar in radars]
     return options
 
 

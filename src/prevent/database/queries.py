@@ -30,7 +30,7 @@ def add_event(db, radar, start_time, end_time, description, tags=None):
 
 
 def sample_events(db):
-    events_table_empty = db.session.execute(db.select(Event)).scalar_one_or_none() is None
+    events_table_empty = db.session.execute(db.select(Event)).first() is None
     if not events_table_empty:
         return
     fikor = db.session.execute(db.select(Radar).filter_by(name="fikor")).scalar_one()

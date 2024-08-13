@@ -35,6 +35,7 @@ def create_layout():
                     start_date_placeholder_text='Start Date',
                     end_date_placeholder_text='End Date',
                     display_format='YYYY-MM-DD',
+                    minimum_nights=0,
                 ),
             ]),
         ]),
@@ -52,18 +53,36 @@ def create_layout():
     description_input = html.Div([
         dbc.Input(id='event-description', type='text', placeholder='Event description')
     ], className='mb-3')
+    radar_picker = dbc.Row([
+        dbc.Label('Radar', width='auto'),
+        dbc.Col(dbc.Select(id='radar-picker')),
+    ], className='mb-3')
     tag_picker = html.Div([
         html.P('Tags'),
         dcc.Dropdown(id='tag-picker', multi=True),
     ], className='mb-3')
+    submit_button = dbc.Button('Submit', color='primary', id='submit-event')
     add_event_tab_content = dbc.Card(
         dbc.CardBody([
-            dbc.Form([time_span_input, description_input, tag_picker]),
+            dbc.Form([
+                time_span_input,
+                description_input,
+                radar_picker,
+                tag_picker,
+                submit_button,
+            ]),
+        ])
+    )
+    maintenance_tab_content = dbc.Card(
+        dbc.CardBody([
+            html.P('Ingest all events to the terracotta database.'),
+            dbc.Button('Ingest all', id='ingest-all', color='primary'),
         ])
     )
     tabs = dbc.Tabs([
         dbc.Tab(event_controls_tab_content, label='Event Controls'),
-        dbc.Tab(add_event_tab_content, label='Add Event')
+        dbc.Tab(add_event_tab_content, label='Add Event'),
+        dbc.Tab(maintenance_tab_content, label='Maintenance'),
     ])
     return dbc.Container([
         dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),

@@ -12,6 +12,9 @@ import boto3
 import terracotta as tc
 from terracotta.exceptions import InvalidDatabaseError
 
+from prevent.database import list_scan_timestamps
+
+
 S3_BUCKET = 'fmi-opendata-radar-geotiff'
 KEYS = ('timestamp', 'radar', 'product')
 KEY_DESCRIPTIONS = {
@@ -57,17 +60,17 @@ def insert(timestamp: datetime.datetime, radar: str, product: str):
         with rasterio.Env(AWSSession(boto3.Session(), requester_pays=False), AWS_NO_SIGN_REQUEST='YES'):
             try:
                 driver.insert(keys, s3path)
-            except CRSError:
-                print('CRSError, skipping')
+            except CRSError as e:
+                print(e)
+                print(f'Likely not a geotiff: {s3path}')
 
 
 def insert_event(event):
     """Insert all radar metadata for an event into the terracotta database."""
-    start_time = event.start_time
-    end_time = event.end_time
-    times = [start_time + datetime.timedelta(minutes=5*i) for i in range(int((end_time-start_time).total_seconds()/60/5))]
+    times = list_scan_timestamps(event)
     radar = event.radar
     radar_name = radar.name
+    print(f'Inserting {len(times)} timestamps for {radar_name}')
     for time in times:
         for product in ('DBZH', 'DBZ-1'):
             try:
