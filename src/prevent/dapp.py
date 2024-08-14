@@ -101,6 +101,48 @@ def submit_event(n_clicks, start_date, end_date, start_time, end_time, descripti
 
 
 @app.callback(
+    output=(
+        Output('save-event', 'n_clicks'),
+        Output('events-update-signal', 'data', allow_duplicate=True),
+    ),
+    inputs=[
+        Input('save-event', 'n_clicks'),
+        State('event-dropdown', 'value'),
+        State('date-span', 'start_date'),
+        State('date-span', 'end_date'),
+        State('start-time', 'value'),
+        State('end-time', 'value'),
+        State('event-description', 'value'),
+        State('radar-picker', 'value'),
+        State('tag-picker', 'value'),
+    ],
+    background=True,
+    running=[(Output('save-event', 'children'), 'Updating event...', 'Save changes')],
+    prevent_initial_call=True
+)
+def update_event(n_clicks, event_id, start_date, end_date, start_time, end_time, description, radar_id, tag_ids):
+    """Update an event in the database."""
+    if not n_clicks:
+        raise PreventUpdate
+    start_time = f"{start_date} {start_time}"
+    end_time = f"{end_date} {end_time}"
+    with server.app_context():
+        event = db.session.query(Event).get(event_id)
+        radar = db.session.query(Radar).get(radar_id)
+        tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+        start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')
+        end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M')
+        event.radar = radar
+        event.start_time = start_time
+        event.end_time = end_time
+        event.description = description
+        event.tags = tags
+        db.session.commit()
+        insert_event(event)
+    return 0, {'status': 'updated'}
+
+
+@app.callback(
     output=Output('ingest-all', 'n_clicks'),
     inputs=[Input('ingest-all', 'n_clicks')],
     background=True,
