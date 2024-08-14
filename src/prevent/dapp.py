@@ -3,8 +3,7 @@
 import os
 import datetime
 
-from dash import Dash, Input, Output, State, no_update
-from dash.long_callback import CeleryLongCallbackManager
+from dash import Dash, Input, Output, State, no_update, CeleryManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
@@ -30,11 +29,11 @@ COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
 
 
 def create_app():
-    celery_app = Celery('prevent', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
-    callman = CeleryLongCallbackManager(celery_app)
+    celery_app = Celery(__name__, broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
+    callman = CeleryManager(celery_app)
     app = Dash(
         __name__, 
-        long_callback_manager=callman,
+        background_callback_manager=callman,
         external_stylesheets=[
             dbc.themes.BOOTSTRAP,
             dbc.icons.FONT_AWESOME
@@ -51,9 +50,10 @@ app, server, celery_app, migrate = create_app()
 app.layout = create_layout()
 
 
-@app.long_callback(
+@app.callback(
     output=Output('startup-interval', 'disabled'),
     inputs=[Input('startup-interval', 'n_intervals')],
+    background=True,
     running=[(Output('event-dropdown', 'disabled'), True, False)]
 )
 def run_initial_setup(n_intervals):
@@ -63,7 +63,7 @@ def run_initial_setup(n_intervals):
     return True
 
 
-@app.long_callback(
+@app.callback(
     output=(
         Output('add-event', 'n_clicks'),
         Output('events-update-signal', 'data', allow_duplicate=True),
@@ -78,6 +78,7 @@ def run_initial_setup(n_intervals):
         State('radar-picker', 'value'),
         State('tag-picker', 'value'),
     ],
+    background=True,
     running=[
         (Output('add-event', 'children'), 'Submitting event...', 'Add new'),
     ],
@@ -99,9 +100,10 @@ def submit_event(n_clicks, start_date, end_date, start_time, end_time, descripti
     return 0, {'status': 'added'}
 
 
-@app.long_callback(
+@app.callback(
     output=Output('ingest-all', 'n_clicks'),
     inputs=[Input('ingest-all', 'n_clicks')],
+    background=True,
     running=[(Output('ingest-all', 'children'), 'Ingesting events...', 'Ingest all')]
 )
 def ingest_all_events(n_clicks):
