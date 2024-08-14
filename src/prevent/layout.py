@@ -50,14 +50,14 @@ def create_layout():
         html.P('Tags'),
         dcc.Dropdown(id='tag-picker', multi=True),
     ], className='mb-3')
-    add_event_button = dbc.Button('Add new', color='primary', id='add-event')
+    add_event_button = dbc.Button('Save as new', color='primary', id='add-event')
     save_event_button = dbc.Button('Save changes', color='primary', id='save-event')
     delete_event_button = dbc.Button('Delete', color='danger', id='delete-event')
-    buttons = dbc.Row([
-        dbc.Col(add_event_button),
-        dbc.Col(save_event_button),
-        dbc.Col(delete_event_button),
-    ])
+    buttons = html.Div([
+        add_event_button,
+        save_event_button,
+        delete_event_button,
+    ], className='d-grid gap-1 d-md-flex justify-content-md-end')
     event_form_card = dbc.Card(
         dbc.CardBody([
             dbc.Form([

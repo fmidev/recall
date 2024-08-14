@@ -80,7 +80,7 @@ def run_initial_setup(n_intervals):
     ],
     background=True,
     running=[
-        (Output('add-event', 'children'), 'Submitting event...', 'Add new'),
+        (Output('add-event', 'children'), 'Submitting event...', 'Save as new'),
     ],
     prevent_initial_call=True
 )
