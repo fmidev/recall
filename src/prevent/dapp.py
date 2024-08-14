@@ -3,7 +3,7 @@
 import os
 import datetime
 
-from dash import Dash, Input, Output, State
+from dash import Dash, Input, Output, State, no_update
 from dash.long_callback import CeleryLongCallbackManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
@@ -54,8 +54,7 @@ app.layout = create_layout()
 @app.long_callback(
     output=Output('startup-interval', 'disabled'),
     inputs=[Input('startup-interval', 'n_intervals')],
-    running=[(Output('event-dropdown', 'disabled'), True, False),
-             (Output('selected-event', 'children'), 'Initializing events. This may take a while.', 'Ready.')]
+    running=[(Output('event-dropdown', 'disabled'), True, False)]
 )
 def run_initial_setup(n_intervals):
     """Run initial setup when the app starts."""
@@ -66,10 +65,11 @@ def run_initial_setup(n_intervals):
 
 @app.long_callback(
     output=(
-        Output('submit-event', 'n_clicks'),
+        Output('add-event', 'n_clicks'),
+        Output('events-update-signal', 'data', allow_duplicate=True),
     ),
     inputs=[
-        Input('submit-event', 'n_clicks'),
+        Input('add-event', 'n_clicks'),
         State('date-span', 'start_date'),
         State('date-span', 'end_date'),
         State('start-time', 'value'),
@@ -79,8 +79,9 @@ def run_initial_setup(n_intervals):
         State('tag-picker', 'value'),
     ],
     running=[
-        (Output('submit-event', 'children'), 'Submitting event...', 'Submit'),
-    ]
+        (Output('add-event', 'children'), 'Submitting event...', 'Add new'),
+    ],
+    prevent_initial_call=True
 )
 def submit_event(n_clicks, start_date, end_date, start_time, end_time, description, radar_id, tag_ids):
     """Submit an event to the database."""
@@ -95,7 +96,7 @@ def submit_event(n_clicks, start_date, end_date, start_time, end_time, descripti
         end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M')
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
         add_event(db, radar, start_time, end_time, description, tags)
-    return 0
+    return 0, {'status': 'added'}
 
 
 @app.long_callback(
@@ -158,10 +159,11 @@ def update_slider_marks(event_id):
 
 
 @app.callback(
-    output=Output('event-dropdown', 'options'),
-    inputs=[Input('startup-interval', 'disabled')]
+    Output('event-dropdown', 'options'),
+    Input('events-update-signal', 'data'),
+    Input('startup-interval', 'disabled')
 )
-def populate_event_dropdown(_):
+def populate_event_dropdown(_, __):
     """Populate the event dropdown with events from the database."""
     events = db.session.query(Event).all()
     if not events:
@@ -205,7 +207,15 @@ def populate_tag_picker(_):
 
 
 @app.callback(
-    Output('selected-event', 'children'),
+    Output('date-span', 'start_date'),
+    Output('date-span', 'end_date'),
+    Output('start-time', 'value'),
+    Output('end-time', 'value'),
+    Output('event-description', 'value'),
+    Output('radar-picker', 'value'),
+    Output('tag-picker', 'value'),
+    Output('delete-event', 'disabled'),
+    Output('save-event', 'disabled'),
     Input('event-dropdown', 'value'),
     Input('startup-interval', 'disabled')
 )
@@ -213,9 +223,33 @@ def update_selected_event(event_id, _):
     """Update the selected event text based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
-        return f"Selected Event: {event.description}"
-    else:
-        return "Select an event"
+        start_date = event.start_time.strftime('%Y-%m-%d')
+        end_date = event.end_time.strftime('%Y-%m-%d')
+        start_time = event.start_time.strftime('%H:%M')
+        end_time = event.end_time.strftime('%H:%M')
+        description = event.description
+        radar_id = event.radar.id
+        tag_ids = [tag.id for tag in event.tags]
+        return start_date, end_date, start_time, end_time, description, radar_id, tag_ids, False, False
+    return None, None, '', '', '', None, [], True, True
+
+
+@app.callback(
+    Output('delete-event', 'n_clicks'),
+    Output('event-dropdown', 'value'),
+    Output('events-update-signal', 'data', allow_duplicate=True),
+    Input('delete-event', 'n_clicks'),
+    State('event-dropdown', 'value'),
+    prevent_initial_call=True
+)
+def delete_event(n_clicks, event_id):
+    """Delete the selected event from the database."""
+    if not n_clicks:
+        raise PreventUpdate
+    event = db.session.query(Event).get(event_id)
+    db.session.delete(event)
+    db.session.commit()
+    return 0, None, {'status': 'deleted'}
 
 
 @app.callback(

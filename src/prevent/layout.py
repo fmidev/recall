@@ -14,17 +14,6 @@ BASEMAP = (
 
 
 def create_layout():
-    event_controls_tab_content = dbc.Card(
-        dbc.CardBody([
-            dcc.Dropdown(id='event-dropdown'),
-            html.Div(id='selected-event'),
-            PlaybackSliderAIO(
-                aio_id='playback',
-                slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
-                button_props={'className': 'float-left'}
-            )
-        ])
-    )
     # event form using dbc.Form, WITHOUT using dbc.FormGroup
     time_span_input = html.Div([
         dbc.Row([
@@ -61,18 +50,38 @@ def create_layout():
         html.P('Tags'),
         dcc.Dropdown(id='tag-picker', multi=True),
     ], className='mb-3')
-    submit_button = dbc.Button('Submit', color='primary', id='submit-event')
-    add_event_tab_content = dbc.Card(
+    add_event_button = dbc.Button('Add new', color='primary', id='add-event')
+    save_event_button = dbc.Button('Save changes', color='primary', id='save-event')
+    delete_event_button = dbc.Button('Delete', color='danger', id='delete-event')
+    buttons = dbc.Row([
+        dbc.Col(add_event_button),
+        dbc.Col(save_event_button),
+        dbc.Col(delete_event_button),
+    ])
+    event_form_card = dbc.Card(
         dbc.CardBody([
             dbc.Form([
                 time_span_input,
                 description_input,
                 radar_picker,
                 tag_picker,
-                submit_button,
+                buttons,
             ]),
         ])
     )
+    event_controls_tab_content = html.Div([
+        dbc.Card(
+            dbc.CardBody([
+                dcc.Dropdown(id='event-dropdown'),
+                PlaybackSliderAIO(
+                    aio_id='playback',
+                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
+                    button_props={'className': 'float-left'}
+                )
+            ])
+        ),
+        event_form_card,
+    ])
     maintenance_tab_content = dbc.Card(
         dbc.CardBody([
             html.P('Ingest all events to the terracotta database.'),
@@ -80,12 +89,12 @@ def create_layout():
         ])
     )
     tabs = dbc.Tabs([
-        dbc.Tab(event_controls_tab_content, label='Event Controls'),
-        dbc.Tab(add_event_tab_content, label='Add Event'),
+        dbc.Tab(event_controls_tab_content, label='Event'),
         dbc.Tab(maintenance_tab_content, label='Maintenance'),
     ])
     return dbc.Container([
         dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
+        dcc.Store(id='events-update-signal'), # signal for updating the event dropdown
         dbc.Row([
             dbc.Col([
                 tabs
