@@ -188,9 +188,10 @@ def update_radar_layers(event_id, slider_val, drag_val):
 @app.callback(
     Output(PlaybackSliderAIO.ids.slider('playback'), 'marks'),
     Output(PlaybackSliderAIO.ids.slider('playback'), 'max'),
-    Input('event-dropdown', 'value')
+    Input('event-dropdown', 'value'),
+    Input('events-update-signal', 'data')
 )
-def update_slider_marks(event_id):
+def update_slider_marks(event_id, _):
     """Update the slider marks based on the selected event."""
     marks = {}
     if not event_id:
