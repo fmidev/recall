@@ -25,6 +25,7 @@ def create_layout():
                     end_date_placeholder_text='End Date',
                     display_format='YYYY-MM-DD',
                     minimum_nights=0,
+                    first_day_of_week=1,
                 ),
             ]),
         ]),
@@ -44,11 +45,11 @@ def create_layout():
     ], className='mb-3')
     radar_picker = dbc.Row([
         dbc.Label('Radar', width='auto'),
-        dbc.Col(dbc.Select(id='radar-picker')),
+        dbc.Col(dcc.Dropdown(id='radar-picker', placeholder='Select radar...')),
     ], className='mb-3')
     tag_picker = html.Div([
         html.P('Tags'),
-        dcc.Dropdown(id='tag-picker', multi=True),
+        dcc.Dropdown(id='tag-picker', multi=True, placeholder='Select tags...'),
     ], className='mb-3')
     add_event_button = dbc.Button('Save as new', color='primary', id='add-event')
     save_event_button = dbc.Button('Save changes', color='primary', id='save-event')
@@ -72,7 +73,7 @@ def create_layout():
     event_controls_tab_content = html.Div([
         dbc.Card(
             dbc.CardBody([
-                dcc.Dropdown(id='event-dropdown'),
+                dcc.Dropdown(id='event-dropdown', placeholder='Select event...'),
                 html.Div([
                     PlaybackSliderAIO(
                         aio_id='playback',
