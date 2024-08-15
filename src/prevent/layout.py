@@ -17,26 +17,13 @@ def create_layout():
     # event form using dbc.Form, WITHOUT using dbc.FormGroup
     time_span_input = html.Div([
         dbc.Row([
-            dbc.Label('Event time span', width='auto'),
-            dbc.Col([
-                dcc.DatePickerRange(
-                    id='date-span',
-                    start_date_placeholder_text='Start Date',
-                    end_date_placeholder_text='End Date',
-                    display_format='YYYY-MM-DD',
-                    minimum_nights=0,
-                    first_day_of_week=1,
-                ),
-            ]),
-        ]),
-        dbc.Row([
             dbc.Label('From', width='auto'),
             dbc.Col([
-                dbc.Input(id='start-time', type='time', placeholder='Start Time'),
+                dbc.Input(id='start-time', type='datetime-local', placeholder='Start Time'),
             ]),
             dbc.Label('to', width='auto'),
             dbc.Col([
-                dbc.Input(id='end-time', type='time', placeholder='End Time'),
+                dbc.Input(id='end-time', type='datetime-local', placeholder='End Time'),
             ])
         ]),
     ], className='mb-3')

@@ -27,6 +27,7 @@ DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
+DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
 
 
 def create_app():
@@ -71,8 +72,6 @@ def run_initial_setup(n_intervals):
     ),
     inputs=[
         Input('add-event', 'n_clicks'),
-        State('date-span', 'start_date'),
-        State('date-span', 'end_date'),
         State('start-time', 'value'),
         State('end-time', 'value'),
         State('event-description', 'value'),
@@ -85,17 +84,15 @@ def run_initial_setup(n_intervals):
     ],
     prevent_initial_call=True
 )
-def submit_event(n_clicks, start_date, end_date, start_time, end_time, description, radar_id, tag_ids):
+def submit_event(n_clicks, start_time, end_time, description, radar_id, tag_ids):
     """Submit an event to the database."""
     if not n_clicks:
         raise PreventUpdate
-    start_time = f"{start_date} {start_time}"
-    end_time = f"{end_date} {end_time}"
     with server.app_context():
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')
-        end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M')
+        start_time = datetime.datetime.strptime(start_time, DATETIME_FORMAT)
+        end_time = datetime.datetime.strptime(end_time, DATETIME_FORMAT)
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
         add_event(db, radar, start_time, end_time, description, tags)
     return 0, {'status': 'added'}
@@ -109,8 +106,6 @@ def submit_event(n_clicks, start_date, end_date, start_time, end_time, descripti
     inputs=[
         Input('save-event', 'n_clicks'),
         State('event-dropdown', 'value'),
-        State('date-span', 'start_date'),
-        State('date-span', 'end_date'),
         State('start-time', 'value'),
         State('end-time', 'value'),
         State('event-description', 'value'),
@@ -121,18 +116,16 @@ def submit_event(n_clicks, start_date, end_date, start_time, end_time, descripti
     running=[(Output('save-event', 'children'), 'Updating event...', 'Save changes')],
     prevent_initial_call=True
 )
-def update_event(n_clicks, event_id, start_date, end_date, start_time, end_time, description, radar_id, tag_ids):
+def update_event(n_clicks, event_id, start_time, end_time, description, radar_id, tag_ids):
     """Update an event in the database."""
     if not n_clicks:
         raise PreventUpdate
-    start_time = f"{start_date} {start_time}"
-    end_time = f"{end_date} {end_time}"
     with server.app_context():
         event = db.session.query(Event).get(event_id)
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')
-        end_time = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M')
+        start_time = datetime.datetime.strptime(start_time, DATETIME_FORMAT)
+        end_time = datetime.datetime.strptime(end_time, DATETIME_FORMAT)
         event.radar = radar
         event.start_time = start_time
         event.end_time = end_time
@@ -250,8 +243,6 @@ def populate_tag_picker(_):
 
 
 @app.callback(
-    Output('date-span', 'start_date'),
-    Output('date-span', 'end_date'),
     Output('start-time', 'value'),
     Output('end-time', 'value'),
     Output('event-description', 'value'),
@@ -267,15 +258,13 @@ def update_selected_event(event_id, _):
     """Update the selected event text based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
-        start_date = event.start_time.strftime('%Y-%m-%d')
-        end_date = event.end_time.strftime('%Y-%m-%d')
-        start_time = event.start_time.strftime('%H:%M')
-        end_time = event.end_time.strftime('%H:%M')
+        start_time = event.start_time.strftime(DATETIME_FORMAT)
+        end_time = event.end_time.strftime(DATETIME_FORMAT)
         description = event.description
         radar_id = event.radar.id
         tag_ids = [tag.id for tag in event.tags]
-        return start_date, end_date, start_time, end_time, description, radar_id, tag_ids, False, False, False
-    return None, None, '', '', '', None, [], True, True, True
+        return start_time, end_time, description, radar_id, tag_ids, False, False, False
+    return '', '', '', None, [], True, True, True
 
 
 @app.callback(
