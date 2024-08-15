@@ -163,9 +163,8 @@ def ingest_all_events(n_clicks):
     Output('map', 'children'),
     Input('event-dropdown', 'value'),
     Input(PlaybackSliderAIO.ids.slider('playback'), 'value'),
-    Input(PlaybackSliderAIO.ids.slider('playback'), 'drag_value')
 )
-def update_radar_layers(event_id, slider_val, drag_val):
+def update_radar_layers(event_id, slider_val):
     """Update the radar image URL based on the selected event."""
     cmap = 'gist_ncar'
     layers = list(BASEMAP)
@@ -175,7 +174,7 @@ def update_radar_layers(event_id, slider_val, drag_val):
     timestamps = list_scan_timestamps(event)
     radar_name = event.radar.name
     product = 'DBZH'
-    itimestep = drag_val or slider_val
+    itimestep = slider_val
     for i, timestamp in enumerate(timestamps):
         url = get_singleband_url(timestamp, radar_name, product, colormap=cmap+'_cut', stretch_range='[0,255]')
         opacity = 0.7 if i == itimestep else 0.0

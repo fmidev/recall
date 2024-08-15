@@ -75,7 +75,7 @@ def create_layout():
                 dcc.Dropdown(id='event-dropdown'),
                 PlaybackSliderAIO(
                     aio_id='playback',
-                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0},
+                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0, 'updatemode': 'drag'},
                     button_props={'className': 'float-left'}
                 )
             ])
