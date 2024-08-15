@@ -65,16 +65,23 @@ def insert(timestamp: datetime.datetime, radar: str, product: str):
                 print(f'Likely not a geotiff: {s3path}')
 
 
-def insert_event(event):
+def dummy_progress_fun(*args, **kws):
+    pass
+
+
+def insert_event(event, set_progress=dummy_progress_fun):
     """Insert all radar metadata for an event into the terracotta database."""
     times = list_scan_timestamps(event)
     radar = event.radar
     radar_name = radar.name
-    print(f'Inserting {len(times)} timestamps for {radar_name}')
-    for time in times:
+    n_times = len(times)
+    print(f'Inserting {n_times} timestamps for {radar_name}')
+    for i, time in enumerate(times):
         for product in ('DBZH', 'DBZ-1'):
             try:
                 insert(time, radar_name, product)
                 break
             except Exception as e:
                 print(e)
+            finally:
+                set_progress((i, n_times))

@@ -55,6 +55,7 @@ def create_layout():
                 tag_picker,
                 buttons,
             ]),
+            dbc.Progress(id='event-form-progress', class_name='d-none'),
         ])
     )
     event_controls_tab_content = html.Div([

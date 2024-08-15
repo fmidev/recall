@@ -80,10 +80,15 @@ def run_initial_setup(n_intervals):
     background=True,
     running=[
         (Output('add-event', 'children'), 'Submitting event...', 'Save as new'),
+        (Output('event-form-progress', 'class_name'), '', 'd-none'),
+    ],
+    progress=[
+        Output('event-form-progress', 'value'),
+        Output('event-form-progress', 'max'),
     ],
     prevent_initial_call=True
 )
-def submit_event(n_clicks, start_time, end_time, description, radar_id, tag_ids):
+def submit_event(set_progress, n_clicks, start_time, end_time, description, radar_id, tag_ids):
     """Submit an event to the database."""
     if not n_clicks:
         raise PreventUpdate
@@ -93,7 +98,7 @@ def submit_event(n_clicks, start_time, end_time, description, radar_id, tag_ids)
         start_time = datetime.datetime.fromisoformat(start_time)
         end_time = datetime.datetime.fromisoformat(end_time)
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
-        add_event(db, radar, start_time, end_time, description, tags)
+        add_event(db, radar, start_time, end_time, description, tags, set_progress=set_progress)
     return 0, {'status': 'added'}
 
 
@@ -112,10 +117,17 @@ def submit_event(n_clicks, start_time, end_time, description, radar_id, tag_ids)
         State('tag-picker', 'value'),
     ],
     background=True,
-    running=[(Output('save-event', 'children'), 'Updating event...', 'Save changes')],
+    running=[
+        (Output('save-event', 'children'), 'Updating event...', 'Save changes'),
+        (Output('event-form-progress', 'class_name'), '', 'd-none'),
+    ],
+    progress=[
+        Output('event-form-progress', 'value'),
+        Output('event-form-progress', 'max'),
+    ],
     prevent_initial_call=True
 )
-def update_event(n_clicks, event_id, start_time, end_time, description, radar_id, tag_ids):
+def update_event(set_progress, n_clicks, event_id, start_time, end_time, description, radar_id, tag_ids):
     """Update an event in the database."""
     if not n_clicks:
         raise PreventUpdate
@@ -131,7 +143,7 @@ def update_event(n_clicks, event_id, start_time, end_time, description, radar_id
         event.description = description
         event.tags = tags
         db.session.commit()
-        insert_event(event)
+        insert_event(event, set_progress=set_progress)
     return 0, {'status': 'updated'}
 
 

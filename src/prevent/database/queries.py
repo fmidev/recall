@@ -14,7 +14,7 @@ def get_coords(db, radar):
     return lat, lon
 
 
-def add_event(db, radar, start_time, end_time, description, tags=None):
+def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
     """Add an event to the database."""
     event = Event(
         radar=radar,
@@ -23,7 +23,7 @@ def add_event(db, radar, start_time, end_time, description, tags=None):
         end_time=end_time,
         description=description
     )
-    insert_event(event)
+    insert_event(event, **kws)
     db.session.add(event)
     db.session.commit()
     return event
