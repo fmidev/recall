@@ -27,7 +27,6 @@ DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
-DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
 
 
 def create_app():
@@ -91,8 +90,8 @@ def submit_event(n_clicks, start_time, end_time, description, radar_id, tag_ids)
     with server.app_context():
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.strptime(start_time, DATETIME_FORMAT)
-        end_time = datetime.datetime.strptime(end_time, DATETIME_FORMAT)
+        start_time = datetime.datetime.fromisoformat(start_time)
+        end_time = datetime.datetime.fromisoformat(end_time)
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
         add_event(db, radar, start_time, end_time, description, tags)
     return 0, {'status': 'added'}
@@ -124,8 +123,8 @@ def update_event(n_clicks, event_id, start_time, end_time, description, radar_id
         event = db.session.query(Event).get(event_id)
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.strptime(start_time, DATETIME_FORMAT)
-        end_time = datetime.datetime.strptime(end_time, DATETIME_FORMAT)
+        start_time = datetime.datetime.fromisoformat(start_time)
+        end_time = datetime.datetime.fromisoformat(end_time)
         event.radar = radar
         event.start_time = start_time
         event.end_time = end_time
@@ -258,8 +257,8 @@ def update_selected_event(event_id, _):
     """Update the selected event text based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
-        start_time = event.start_time.strftime(DATETIME_FORMAT)
-        end_time = event.end_time.strftime(DATETIME_FORMAT)
+        start_time = event.start_time.isoformat()
+        end_time = event.end_time.isoformat()
         description = event.description
         radar_id = event.radar.id
         tag_ids = [tag.id for tag in event.tags]
