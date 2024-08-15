@@ -18,6 +18,7 @@ from prevent.layout import BASEMAP, create_layout
 from prevent.terracotta.client import get_singleband_url
 from prevent.terracotta.ingest import insert_event
 from prevent.aios import PlaybackSliderAIO
+from prevent.utils import timestamp_marks
 from prevent.visuals import cmap2hex
 
 
@@ -192,14 +193,12 @@ def update_radar_layers(event_id, slider_val):
 )
 def update_slider_marks(event_id, _):
     """Update the slider marks based on the selected event."""
-    marks = {}
     if not event_id:
-        return marks, 1
+        return {}, 1
     event = db.session.query(Event).get(event_id)
     timestamps = list_scan_timestamps(event)
-    for i, timestamp in enumerate(timestamps):
-        marks[i] = {'label': timestamp.strftime('%H:%M')}
-    return marks, i
+    marks = timestamp_marks(timestamps)
+    return marks, len(timestamps) - 1
 
 
 @app.callback(
