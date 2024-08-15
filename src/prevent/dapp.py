@@ -259,6 +259,7 @@ def populate_tag_picker(_):
     Output('tag-picker', 'value'),
     Output('delete-event', 'disabled'),
     Output('save-event', 'disabled'),
+    Output('playback-container', 'hidden'),
     Input('event-dropdown', 'value'),
     Input('startup-interval', 'disabled')
 )
@@ -273,8 +274,8 @@ def update_selected_event(event_id, _):
         description = event.description
         radar_id = event.radar.id
         tag_ids = [tag.id for tag in event.tags]
-        return start_date, end_date, start_time, end_time, description, radar_id, tag_ids, False, False
-    return None, None, '', '', '', None, [], True, True
+        return start_date, end_date, start_time, end_time, description, radar_id, tag_ids, False, False, False
+    return None, None, '', '', '', None, [], True, True, True
 
 
 @app.callback(

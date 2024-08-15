@@ -73,11 +73,13 @@ def create_layout():
         dbc.Card(
             dbc.CardBody([
                 dcc.Dropdown(id='event-dropdown'),
-                PlaybackSliderAIO(
-                    aio_id='playback',
-                    slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0, 'updatemode': 'drag'},
-                    button_props={'className': 'float-left'}
-                )
+                html.Div([
+                    PlaybackSliderAIO(
+                        aio_id='playback',
+                        slider_props={'min': 0, 'max': 1, 'step': 1, 'value': 0, 'updatemode': 'drag'},
+                        button_props={'className': 'float-left'}
+                    )
+                ], id='playback-container', hidden=True),
             ])
         ),
         event_form_card,
