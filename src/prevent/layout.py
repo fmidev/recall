@@ -86,6 +86,7 @@ def create_layout():
         delete_tag_button,
     ], className=BUTTONS_GRID_CLASS)
     tag_tab_content = html.Div([
+        dcc.Store(id='selected-tag-id'),
         dbc.Card([
             dbc.CardHeader(
                 html.Div([], id='tag-collection', className='d-flex flex-wrap')

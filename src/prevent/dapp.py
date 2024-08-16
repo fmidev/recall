@@ -3,7 +3,7 @@
 import os
 import datetime
 
-from dash import Dash, Input, Output, State, MATCH, CeleryManager
+from dash import Dash, Input, Output, State, ALL, CeleryManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
@@ -301,26 +301,61 @@ def delete_event(n_clicks, event_id):
 @app.callback(
     Output('tag-collection', 'children'),
     Input('tag-name', 'value'),
+    State('selected-tag-id', 'data'),
 )
-def populate_tag_collection(tag_name):
+def populate_tag_collection(tag_name, selected_tag_id):
     """Populate the tag collection.
 
-    The tag collection holds all tags in the database by default.
-    If a tag name is provided, only tags matching that name are shown.
+    The tag collection holds all tags in the database.
+    The matching tags are highlighted.
     """
+    matching_tags_ids = []
+    full_match = False
     if tag_name:
-        tags = db.session.query(Tag).filter(Tag.name.ilike(f'%{tag_name}%')).all()
-    else:
-        tags = db.session.query(Tag).all()
+        matching_tags = db.session.query(Tag).filter(Tag.name.ilike(f'%{tag_name}%')).all()
+        matching_tags_ids = [tag.id for tag in matching_tags]
+        full_match = any(tag.name == tag_name for tag in matching_tags)
+    tags = db.session.query(Tag).all()
     tag_buttons = []
     for tag in tags:
+        if tag.id in matching_tags_ids:
+            if tag.id == selected_tag_id:
+                color = 'primary'
+            else:
+                color = 'danger' if full_match else 'warning'
+        else:
+            color = 'secondary'
         button = dbc.Button(
             tag.name,
             id={'type': 'tag-button', 'index': tag.id},
-            color='primary', outline=True, size='sm', class_name='mr-2 mb-2',
+            active=tag.id == selected_tag_id,
+            color=color, outline=True, size='sm', class_name='mr-2 mb-2',
         )
         tag_buttons.append(button)
     return tag_buttons
+
+
+@app.callback(
+    Output('tag-name', 'value'),
+    Output('tag-description', 'value'),
+    Output('selected-tag-id', 'data'),
+    State('selected-tag-id', 'data'),
+    Input({'type': 'tag-button', 'index': ALL}, 'n_clicks'),
+    State({'type': 'tag-button', 'index': ALL}, 'id'),
+    prevent_initial_call=True
+)
+def tag_selected(selected_tag_id, n_clicks, button_ids):
+    """Update the selected tag text based on the selected tag."""
+    if not any(n_clicks):
+        raise PreventUpdate
+    # Find the index of the clicked button
+    clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
+    button_id = button_ids[clicked_index]
+    tag_id = button_id['index']
+    if tag_id == selected_tag_id:
+        return '', '', None
+    tag = db.session.query(Tag).get(tag_id)
+    return tag.name, tag.description, tag_id
 
 
 @app.callback(
