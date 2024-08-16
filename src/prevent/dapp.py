@@ -300,6 +300,7 @@ def delete_event(n_clicks, event_id):
 
 @app.callback(
     Output('tag-collection', 'children'),
+    Output('add-tag', 'disabled'),
     Input('tag-name', 'value'),
     State('selected-tag-id', 'data'),
 )
@@ -317,6 +318,8 @@ def populate_tag_collection(tag_name, selected_tag_id):
         full_match = any(tag.name == tag_name for tag in matching_tags)
     tags = db.session.query(Tag).all()
     tag_buttons = []
+    # Disable the add button if the tag name is empty or tag_name already exists
+    adding_disabled = not tag_name or full_match or selected_tag_id > -1
     for tag in tags:
         if tag.id in matching_tags_ids:
             if tag.id == selected_tag_id:
@@ -332,13 +335,15 @@ def populate_tag_collection(tag_name, selected_tag_id):
             color=color, outline=True, size='sm', class_name='mr-2 mb-2',
         )
         tag_buttons.append(button)
-    return tag_buttons
+    return tag_buttons, adding_disabled
 
 
 @app.callback(
     Output('tag-name', 'value'),
     Output('tag-description', 'value'),
     Output('selected-tag-id', 'data'),
+    Output('save-tag', 'disabled'),
+    Output('delete-tag', 'disabled'),
     State('selected-tag-id', 'data'),
     Input({'type': 'tag-button', 'index': ALL}, 'n_clicks'),
     State({'type': 'tag-button', 'index': ALL}, 'id'),
@@ -353,9 +358,9 @@ def tag_selected(selected_tag_id, n_clicks, button_ids):
     button_id = button_ids[clicked_index]
     tag_id = button_id['index']
     if tag_id == selected_tag_id:
-        return '', '', None
+        return '', '', None, True, True
     tag = db.session.query(Tag).get(tag_id)
-    return tag.name, tag.description, tag_id
+    return tag.name, tag.description, tag_id, False, False
 
 
 @app.callback(

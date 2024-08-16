@@ -78,15 +78,15 @@ def create_layout():
         event_form_card,
     ])
     add_tag_button = dbc.Button('Add new', color='primary', id='add-tag')
-    save_tag_button = dbc.Button('Save changes', color='primary', id='save-tag')
-    delete_tag_button = dbc.Button('Delete', color='danger', id='delete-tag')
+    save_tag_button = dbc.Button('Save changes', color='primary', id='save-tag', disabled=True)
+    delete_tag_button = dbc.Button('Delete', color='danger', id='delete-tag', disabled=True)
     tag_buttons = html.Div([
         add_tag_button,
         save_tag_button,
         delete_tag_button,
     ], className=BUTTONS_GRID_CLASS)
     tag_tab_content = html.Div([
-        dcc.Store(id='selected-tag-id'),
+        dcc.Store(id='selected-tag-id', data=-1),
         dbc.Card([
             dbc.CardHeader(
                 html.Div([], id='tag-collection', className='d-flex flex-wrap')
