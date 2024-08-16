@@ -3,6 +3,7 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import uuid
 
+
 class PlaybackSliderAIO(html.Div):
 
     class ids:
@@ -46,12 +47,14 @@ class PlaybackSliderAIO(html.Div):
         button_props['active'] = False
 
         super().__init__([
-            dbc.Button(
-                html.I(id=self.ids.play_icon(aio_id)),
-                id=self.ids.play(aio_id),
-                **button_props
-            ),
-            dcc.Slider(id=self.ids.slider(aio_id), **slider_props),
+            dbc.Row([
+                dbc.Col(dbc.Button(
+                    html.I(id=self.ids.play_icon(aio_id)),
+                    id=self.ids.play(aio_id),
+                    **button_props
+                ), width=1),
+                dbc.Col(dcc.Slider(id=self.ids.slider(aio_id), className='md-3', **slider_props)),
+            ]),
             dcc.Interval(id=self.ids.interval(aio_id), **interval_props),
         ])
 
@@ -80,9 +83,7 @@ class PlaybackSliderAIO(html.Div):
     def start_playback(play, interval, min, max, step, value):
         if not play:
             raise PreventUpdate
-        
         new_val = value + step
         if new_val > max:
             new_val = min
-
         return new_val

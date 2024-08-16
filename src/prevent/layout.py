@@ -48,6 +48,7 @@ def create_layout():
     ], className='d-grid gap-1 d-md-flex justify-content-md-end')
     event_form_card = dbc.Card(
         dbc.CardBody([
+            html.H4('Event details', className='card-title'),
             dbc.Form([
                 time_span_input,
                 description_input,
@@ -56,12 +57,13 @@ def create_layout():
                 buttons,
             ]),
             dbc.Progress(id='event-form-progress', class_name='d-none'),
-        ])
+        ]),
+        class_name='mt-3'
     )
     event_controls_tab_content = html.Div([
         dbc.Card(
             dbc.CardBody([
-                dcc.Dropdown(id='event-dropdown', placeholder='Select event...'),
+                dcc.Dropdown(id='event-dropdown', placeholder='Select event...', className='mb-3'),
                 html.Div([
                     PlaybackSliderAIO(
                         aio_id='playback',
@@ -69,7 +71,8 @@ def create_layout():
                         button_props={'className': 'float-left'}
                     )
                 ], id='playback-container', hidden=True),
-            ])
+            ]),
+            class_name='mt-3'
         ),
         event_form_card,
     ])
@@ -77,7 +80,8 @@ def create_layout():
         dbc.CardBody([
             html.P('Ingest all events to the terracotta database.'),
             dbc.Button('Ingest all', id='ingest-all', color='primary'),
-        ])
+        ]),
+        class_name='mt-3'
     )
     tabs = dbc.Tabs([
         dbc.Tab(event_controls_tab_content, label='Event'),

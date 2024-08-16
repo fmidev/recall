@@ -84,4 +84,4 @@ def insert_event(event, set_progress=dummy_progress_fun):
             except Exception as e:
                 print(e)
             finally:
-                set_progress((i, n_times))
+                set_progress((i, n_times, f'{i}/{n_times}'))

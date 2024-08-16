@@ -85,6 +85,7 @@ def run_initial_setup(n_intervals):
     progress=[
         Output('event-form-progress', 'value'),
         Output('event-form-progress', 'max'),
+        Output('event-form-progress', 'label'),
     ],
     prevent_initial_call=True
 )
@@ -119,11 +120,12 @@ def submit_event(set_progress, n_clicks, start_time, end_time, description, rada
     background=True,
     running=[
         (Output('save-event', 'children'), 'Updating event...', 'Save changes'),
-        (Output('event-form-progress', 'class_name'), '', 'd-none'),
+        (Output('event-form-progress', 'class_name'), 'my-3', 'd-none'),
     ],
     progress=[
         Output('event-form-progress', 'value'),
         Output('event-form-progress', 'max'),
+        Output('event-form-progress', 'label'),
     ],
     prevent_initial_call=True
 )
