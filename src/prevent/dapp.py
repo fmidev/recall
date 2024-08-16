@@ -3,7 +3,7 @@
 import os
 import datetime
 
-from dash import Dash, Input, Output, State, no_update, CeleryManager
+from dash import Dash, Input, Output, State, MATCH, CeleryManager
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
@@ -296,6 +296,31 @@ def delete_event(n_clicks, event_id):
     db.session.delete(event)
     db.session.commit()
     return 0, None, {'status': 'deleted'}
+
+
+@app.callback(
+    Output('tag-collection', 'children'),
+    Input('tag-name', 'value'),
+)
+def populate_tag_collection(tag_name):
+    """Populate the tag collection.
+
+    The tag collection holds all tags in the database by default.
+    If a tag name is provided, only tags matching that name are shown.
+    """
+    if tag_name:
+        tags = db.session.query(Tag).filter(Tag.name.ilike(f'%{tag_name}%')).all()
+    else:
+        tags = db.session.query(Tag).all()
+    tag_buttons = []
+    for tag in tags:
+        button = dbc.Button(
+            tag.name,
+            id={'type': 'tag-button', 'index': tag.id},
+            color='primary', outline=True, size='sm', class_name='mr-2 mb-2',
+        )
+        tag_buttons.append(button)
+    return tag_buttons
 
 
 @app.callback(

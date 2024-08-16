@@ -11,6 +11,7 @@ BASEMAP = (
     dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
     dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
 )
+BUTTONS_GRID_CLASS = 'd-grid gap-1 d-md-flex justify-content-md-end'
 
 
 def create_layout():
@@ -41,11 +42,11 @@ def create_layout():
     add_event_button = dbc.Button('Save as new', color='primary', id='add-event')
     save_event_button = dbc.Button('Save changes', color='primary', id='save-event')
     delete_event_button = dbc.Button('Delete', color='danger', id='delete-event')
-    buttons = html.Div([
+    event_buttons = html.Div([
         add_event_button,
         save_event_button,
         delete_event_button,
-    ], className='d-grid gap-1 d-md-flex justify-content-md-end')
+    ], className=BUTTONS_GRID_CLASS)
     event_form_card = dbc.Card(
         dbc.CardBody([
             html.H4('Event details', className='card-title'),
@@ -54,7 +55,7 @@ def create_layout():
                 description_input,
                 radar_picker,
                 tag_picker,
-                buttons,
+                event_buttons,
             ]),
             dbc.Progress(id='event-form-progress', class_name='d-none'),
         ]),
@@ -76,6 +77,26 @@ def create_layout():
         ),
         event_form_card,
     ])
+    add_tag_button = dbc.Button('Add new', color='primary', id='add-tag')
+    save_tag_button = dbc.Button('Save changes', color='primary', id='save-tag')
+    delete_tag_button = dbc.Button('Delete', color='danger', id='delete-tag')
+    tag_buttons = html.Div([
+        add_tag_button,
+        save_tag_button,
+        delete_tag_button,
+    ], className=BUTTONS_GRID_CLASS)
+    tag_tab_content = html.Div([
+        dbc.Card([
+            dbc.CardHeader(
+                html.Div([], id='tag-collection', className='d-flex flex-wrap')
+            ),
+            dbc.CardBody([
+                dbc.Input(id='tag-name', type='text', placeholder='Tag name', class_name='mb-3'),
+                dbc.Input(id='tag-description', type='text', placeholder='Tag description', class_name='mb-3'),
+                tag_buttons,
+            ]),
+        ], class_name='mt-3'),
+    ])
     maintenance_tab_content = dbc.Card(
         dbc.CardBody([
             html.P('Ingest all events to the terracotta database.'),
@@ -84,7 +105,8 @@ def create_layout():
         class_name='mt-3'
     )
     tabs = dbc.Tabs([
-        dbc.Tab(event_controls_tab_content, label='Event'),
+        dbc.Tab(event_controls_tab_content, label='Events'),
+        dbc.Tab(tag_tab_content, label='Tags'),
         dbc.Tab(maintenance_tab_content, label='Maintenance'),
     ])
     return dbc.Container([
