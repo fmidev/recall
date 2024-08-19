@@ -214,7 +214,7 @@ def update_slider_marks(event_id, _):
 )
 def populate_event_dropdown(_, __):
     """Populate the event dropdown with events from the database."""
-    events = db.session.query(Event).all()
+    events = db.session.query(Event).order_by(Event.start_time).all()
     if not events:
         print('No events found')
         raise PreventUpdate
@@ -233,7 +233,7 @@ def populate_event_dropdown(_, __):
 )
 def populate_radar_picker(_):
     """Populate the radar picker with radars from the database."""
-    radars = db.session.query(Radar).all()
+    radars = db.session.query(Radar).order_by(Radar.name).all()
     if not radars:
         print('No radars found')
         raise PreventUpdate
@@ -247,7 +247,7 @@ def populate_radar_picker(_):
 )
 def populate_tag_picker(_):
     """Populate the tag picker with tags from the database."""
-    tags = db.session.query(Tag).all()
+    tags = db.session.query(Tag).order_by(Tag.name).all()
     if not tags:
         print('No tags found')
         raise PreventUpdate
@@ -317,7 +317,7 @@ def populate_tag_collection(tag_name, _, selected_tag_id):
         matching_tags = db.session.query(Tag).filter(Tag.name.ilike(f'%{tag_name}%')).all()
         matching_tags_ids = [tag.id for tag in matching_tags]
         full_match = any(tag.name == tag_name for tag in matching_tags)
-    tags = db.session.query(Tag).all()
+    tags = db.session.query(Tag).order_by(Tag.name).all()
     tag_buttons = []
     # Disable the add button if the tag name is empty or tag_name already exists
     adding_disabled = not tag_name or full_match or selected_tag_id > -1
