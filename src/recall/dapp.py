@@ -3,7 +3,7 @@
 import os
 import datetime
 
-from dash import Dash, Input, Output, State, ALL, CeleryManager
+from dash import Dash, Input, Output, State, ALL, CeleryManager, callback
 from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
@@ -51,7 +51,7 @@ app, server, celery_app, migrate = create_app()
 app.layout = create_layout()
 
 
-@app.callback(
+@callback(
     output=Output('startup-interval', 'disabled'),
     inputs=[Input('startup-interval', 'n_intervals')],
     background=True,
@@ -64,7 +64,7 @@ def run_initial_setup(n_intervals):
     return True
 
 
-@app.callback(
+@callback(
     output=(
         Output('add-event', 'n_clicks'),
         Output('events-update-signal', 'data', allow_duplicate=True),
@@ -103,7 +103,7 @@ def submit_event(set_progress, n_clicks, start_time, end_time, description, rada
     return 0, {'status': 'added'}
 
 
-@app.callback(
+@callback(
     output=(
         Output('save-event', 'n_clicks'),
         Output('events-update-signal', 'data', allow_duplicate=True),
@@ -149,7 +149,7 @@ def update_event(set_progress, n_clicks, event_id, start_time, end_time, descrip
     return 0, {'status': 'updated'}
 
 
-@app.callback(
+@callback(
     output=Output('ingest-all', 'n_clicks'),
     inputs=[Input('ingest-all', 'n_clicks')],
     background=True,
@@ -166,7 +166,7 @@ def ingest_all_events(n_clicks):
     return 0
 
 
-@app.callback(
+@callback(
     Output('map', 'children'),
     Input('event-dropdown', 'value'),
     Input(PlaybackSliderAIO.ids.slider('playback'), 'value'),
@@ -191,7 +191,7 @@ def update_radar_layers(event_id, slider_val):
     return layers
 
 
-@app.callback(
+@callback(
     Output(PlaybackSliderAIO.ids.slider('playback'), 'marks'),
     Output(PlaybackSliderAIO.ids.slider('playback'), 'max'),
     Input('event-dropdown', 'value'),
@@ -207,7 +207,7 @@ def update_slider_marks(event_id, _):
     return marks, len(timestamps) - 1
 
 
-@app.callback(
+@callback(
     Output('event-dropdown', 'options'),
     Input('events-update-signal', 'data'),
     Input('startup-interval', 'disabled')
@@ -227,7 +227,7 @@ def populate_event_dropdown(_, __):
     return options
 
 
-@app.callback(
+@callback(
     Output('radar-picker', 'options'),
     Input('startup-interval', 'disabled')
 )
@@ -241,7 +241,7 @@ def populate_radar_picker(_):
     return options
 
 
-@app.callback(
+@callback(
     Output('tag-picker', 'options'),
     Input('startup-interval', 'disabled')
 )
@@ -255,7 +255,7 @@ def populate_tag_picker(_):
     return options
 
 
-@app.callback(
+@callback(
     Output('start-time', 'value'),
     Output('end-time', 'value'),
     Output('event-description', 'value'),
@@ -280,7 +280,7 @@ def update_selected_event(event_id, _):
     return '', '', '', None, [], True, True, True
 
 
-@app.callback(
+@callback(
     Output('delete-event', 'n_clicks'),
     Output('event-dropdown', 'value'),
     Output('events-update-signal', 'data', allow_duplicate=True),
@@ -298,7 +298,7 @@ def delete_event(n_clicks, event_id):
     return 0, None, {'status': 'deleted'}
 
 
-@app.callback(
+@callback(
     Output('tag-collection', 'children'),
     Output('add-tag', 'disabled'),
     Input('tag-name', 'value'),
@@ -339,7 +339,7 @@ def populate_tag_collection(tag_name, _, selected_tag_id):
     return tag_buttons, adding_disabled
 
 
-@app.callback(
+@callback(
     Output('tag-name', 'value'),
     Output('tag-description', 'value'),
     Output('selected-tag-id', 'data'),
@@ -370,7 +370,7 @@ def tag_selected(selected_tag_id, signal, n_clicks, button_ids):
     return tag.name, tag.description, tag_id, False, False
 
 
-@app.callback(
+@callback(
     Output('add-tag', 'n_clicks'),
     Output('tag-update-signal', 'data', allow_duplicate=True),
     Input('add-tag', 'n_clicks'),
@@ -390,7 +390,7 @@ def add_tag(n_clicks, name, description):
     return 0, {'status': 'added', 'id': tag.id}
 
 
-@app.callback(
+@callback(
     Output('save-tag', 'n_clicks'),
     Output('tag-update-signal', 'data', allow_duplicate=True),
     Input('save-tag', 'n_clicks'),
@@ -410,7 +410,7 @@ def save_tag(n_clicks, name, description, tag_id):
     return 0, {'status': 'updated'}
 
 
-@app.callback(
+@callback(
     Output('delete-tag', 'n_clicks'),
     Output('tag-update-signal', 'data', allow_duplicate=True),
     Input('delete-tag', 'n_clicks'),
@@ -427,7 +427,7 @@ def delete_tag(n_clicks, tag_id):
     return 0, {'status': 'deleted'}
 
 
-@app.callback(
+@callback(
     Output('map', 'viewport'),
     Input('event-dropdown', 'value')
 )
