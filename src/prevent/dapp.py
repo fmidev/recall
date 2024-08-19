@@ -302,9 +302,10 @@ def delete_event(n_clicks, event_id):
     Output('tag-collection', 'children'),
     Output('add-tag', 'disabled'),
     Input('tag-name', 'value'),
+    Input('tag-update-signal', 'data'),
     State('selected-tag-id', 'data'),
 )
-def populate_tag_collection(tag_name, selected_tag_id):
+def populate_tag_collection(tag_name, _, selected_tag_id):
     """Populate the tag collection.
 
     The tag collection holds all tags in the database.
@@ -345,22 +346,83 @@ def populate_tag_collection(tag_name, selected_tag_id):
     Output('save-tag', 'disabled'),
     Output('delete-tag', 'disabled'),
     State('selected-tag-id', 'data'),
+    Input('tag-update-signal', 'data'),
     Input({'type': 'tag-button', 'index': ALL}, 'n_clicks'),
     State({'type': 'tag-button', 'index': ALL}, 'id'),
     prevent_initial_call=True
 )
-def tag_selected(selected_tag_id, n_clicks, button_ids):
-    """Update the selected tag text based on the selected tag."""
-    if not any(n_clicks):
+def tag_selected(selected_tag_id, signal, n_clicks, button_ids):
+    """Update the tag form based on the selected tag."""
+    if signal.get('status') == 'added':
+        tag_id = signal.get('id')
+    elif any(n_clicks):
+        # Find the index of the clicked button
+        clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
+        button_id = button_ids[clicked_index]
+        tag_id = button_id['index']
+        if tag_id == selected_tag_id:
+            return '', '', -1, True, True
+    else:
         raise PreventUpdate
-    # Find the index of the clicked button
-    clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
-    button_id = button_ids[clicked_index]
-    tag_id = button_id['index']
-    if tag_id == selected_tag_id:
-        return '', '', None, True, True
     tag = db.session.query(Tag).get(tag_id)
     return tag.name, tag.description, tag_id, False, False
+
+
+@app.callback(
+    Output('add-tag', 'n_clicks'),
+    Output('tag-update-signal', 'data', allow_duplicate=True),
+    Input('add-tag', 'n_clicks'),
+    State('tag-name', 'value'),
+    State('tag-description', 'value'),
+    prevent_initial_call=True
+)
+def add_tag(n_clicks, name, description):
+    """Add a new tag to the database."""
+    if not n_clicks:
+        raise PreventUpdate
+    if not name:
+        return 0, {'status': 'empty'}
+    tag = Tag(name=name, description=description)
+    db.session.add(tag)
+    db.session.commit()
+    return 0, {'status': 'added', 'id': tag.id}
+
+
+@app.callback(
+    Output('save-tag', 'n_clicks'),
+    Output('tag-update-signal', 'data', allow_duplicate=True),
+    Input('save-tag', 'n_clicks'),
+    State('tag-name', 'value'),
+    State('tag-description', 'value'),
+    State('selected-tag-id', 'data'),
+    prevent_initial_call=True
+)
+def save_tag(n_clicks, name, description, tag_id):
+    """Save changes to the selected tag."""
+    if not n_clicks:
+        raise PreventUpdate
+    tag = db.session.query(Tag).get(tag_id)
+    tag.name = name
+    tag.description = description
+    db.session.commit()
+    return 0, {'status': 'updated'}
+
+
+@app.callback(
+    Output('delete-tag', 'n_clicks'),
+    Output('tag-update-signal', 'data', allow_duplicate=True),
+    Input('delete-tag', 'n_clicks'),
+    State('selected-tag-id', 'data'),
+    prevent_initial_call=True
+)
+def delete_tag(n_clicks, tag_id):
+    """Delete the selected tag from the database."""
+    if not n_clicks:
+        raise PreventUpdate
+    tag = db.session.query(Tag).get(tag_id)
+    db.session.delete(tag)
+    db.session.commit()
+    return 0, {'status': 'deleted'}
 
 
 @app.callback(

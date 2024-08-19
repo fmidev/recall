@@ -87,6 +87,7 @@ def create_layout():
     ], className=BUTTONS_GRID_CLASS)
     tag_tab_content = html.Div([
         dcc.Store(id='selected-tag-id', data=-1),
+        dcc.Store(id='tag-update-signal', data={}), # signal for updating the tag collection
         dbc.Card([
             dbc.CardHeader(
                 html.Div([], id='tag-collection', className='d-flex flex-wrap')
