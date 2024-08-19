@@ -3,14 +3,23 @@ import dash_bootstrap_components as dbc
 import dash_leaflet as dl
 
 from prevent.aios import PlaybackSliderAIO
-from prevent.secrets import FMI_COMMERCIAL_API_KEY 
+try:
+    from prevent.secrets import FMI_COMMERCIAL_API_KEY
+    use_commercial_api = True
+except ImportError:
+    use_commercial_api = False
 
 
-WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
-BASEMAP = (
-    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
-    dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
-)
+if use_commercial_api:
+    WMS_MAP = f'https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms'
+    BASEMAP = (
+        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:BasicMap version 7', format='image/png'),
+        dl.WMSTileLayer(url=WMS_MAP, layers='KAP:radars_finland', format='image/png', transparent=True)
+    )
+else:
+    BASEMAP = (
+        dl.TileLayer(),
+    )
 BUTTONS_GRID_CLASS = 'd-grid gap-1 d-md-flex justify-content-md-end'
 
 
