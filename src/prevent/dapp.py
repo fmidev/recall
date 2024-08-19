@@ -353,15 +353,17 @@ def populate_tag_collection(tag_name, _, selected_tag_id):
 )
 def tag_selected(selected_tag_id, signal, n_clicks, button_ids):
     """Update the tag form based on the selected tag."""
-    if signal.get('status') == 'added':
-        tag_id = signal.get('id')
-    elif any(n_clicks):
+    if any(n_clicks):
         # Find the index of the clicked button
         clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
         button_id = button_ids[clicked_index]
         tag_id = button_id['index']
         if tag_id == selected_tag_id:
             return '', '', -1, True, True
+    elif signal.get('status') == 'added':
+        tag_id = signal.get('id')
+    elif signal.get('status') == 'deleted':
+        return '', '', -1, True, True
     else:
         raise PreventUpdate
     tag = db.session.query(Tag).get(tag_id)
