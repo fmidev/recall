@@ -1,4 +1,4 @@
-# prevent - Precipitation event browser
+# Recall - Radar Event Catalog and Archive Lookup Library
 
 Simple web application to browse precipitation events and related weather radar data.
 
@@ -12,7 +12,7 @@ Events can be filtered by tags. A radar animation is shown for each event.
 Build the dev version of the main container:
 
 ```console
-podman build -f Dockerfile.dev -t prevent:dev .
+podman build -f Dockerfile.dev -t recall:dev .
 ```
 
 Run the development version:

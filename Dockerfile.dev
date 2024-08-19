@@ -19,4 +19,4 @@ RUN pip install -U pip \
 EXPOSE 8050
 
 # Command to run the app
-CMD ["gunicorn", "prevent.dapp:server", "-b", "0.0.0.0:8050", "--reload"]
+CMD ["gunicorn", "recall.dapp:server", "-b", "0.0.0.0:8050", "--reload"]

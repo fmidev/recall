@@ -2,10 +2,10 @@
 
 import datetime
 
-from prevent.database.connection import db
+from recall.database.connection import db
 
-from prevent.terracotta.ingest import insert_event
-from prevent.database.models import Event, Radar, Tag
+from recall.terracotta.ingest import insert_event
+from recall.database.models import Event, Radar, Tag
 
 
 def get_coords(db, radar):

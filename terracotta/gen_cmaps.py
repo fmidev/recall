@@ -54,6 +54,6 @@ def save_cmap(cmap, cmap_dir='/tmp', min_dbz=None):
 
 
 if __name__ == '__main__':
-    cmap_dir = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
+    cmap_dir = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/recall/colormaps')
     os.makedirs(cmap_dir, exist_ok=True)
     save_cmap('gist_ncar', cmap_dir=cmap_dir, min_dbz=-10)

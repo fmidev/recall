@@ -10,23 +10,23 @@ import dash_bootstrap_components as dbc
 from celery import Celery
 from flask_migrate import Migrate
 
-from prevent.database import list_scan_timestamps
-from prevent.database.models import Event, Tag, Radar
-from prevent.database.queries import get_coords, initial_db_setup, add_event
-from prevent.database.connection import db
-from prevent.layout import BASEMAP, create_layout
-from prevent.terracotta.client import get_singleband_url
-from prevent.terracotta.ingest import insert_event
-from prevent.aios import PlaybackSliderAIO
-from prevent.utils import timestamp_marks
-from prevent.visuals import cmap2hex
+from recall.database import list_scan_timestamps
+from recall.database.models import Event, Tag, Radar
+from recall.database.queries import get_coords, initial_db_setup, add_event
+from recall.database.connection import db
+from recall.layout import BASEMAP, create_layout
+from recall.terracotta.client import get_singleband_url
+from recall.terracotta.ingest import insert_event
+from recall.aios import PlaybackSliderAIO
+from recall.utils import timestamp_marks
+from recall.visuals import cmap2hex
 
 
 DEFAULT_COORDS = (64.0, 26.5)
-DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/prevent')
+DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/recall')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
-COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/prevent/colormaps')
+COLORMAPS_DIR = os.environ.get('TC_EXTRA_CMAP_FOLDER', '/tmp/recall/colormaps')
 
 
 def create_app():

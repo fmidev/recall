@@ -22,6 +22,6 @@ if [ -n "${POSTGRES_MULTIPLE_DATABASES:-}" ]; then
 fi
 
 # Initialize the database with PostGIS extension
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "preventdb" <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "recalldb" <<-EOSQL
     CREATE EXTENSION IF NOT EXISTS postgis;
 EOSQL

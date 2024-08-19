@@ -5,7 +5,7 @@ from sqlalchemy import Column, String, Text, ForeignKey, event
 from sqlalchemy.orm import mapped_column, Mapped
 from geoalchemy2 import Geography
 
-from prevent.database.connection import db
+from recall.database.connection import db
 
 
 event_tag_m2m = db.Table(

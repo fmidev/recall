@@ -3,9 +3,9 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "prevent"
+name = "recall"
 dynamic = ["version"]
-description = 'Precipitation event database and visualization'
+description = 'Radar Event Catalog and Archive Lookup Library'
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -40,12 +40,12 @@ dependencies = [
 ]
 
 [project.scripts]
-prevent = "prevent.dapp:main"
+recall = "recall.dapp:main"
 
 [project.urls]
-#Documentation = "https://github.com/Jussi Tiira/prevent#readme"
-#Issues = "https://github.com/Jussi Tiira/prevent/issues"
-#Source = "https://github.com/Jussi Tiira/prevent"
+#Documentation = "https://github.com/Jussi Tiira/recall#readme"
+#Issues = "https://github.com/Jussi Tiira/recall/issues"
+#Source = "https://github.com/Jussi Tiira/recall"
 
 [tool.hatch.version]
 source = "vcs"
@@ -61,18 +61,18 @@ artifacts = [
 ]
 
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/prevent tests}"
+check = "mypy --install-types --non-interactive {args:src/recall tests}"
 
 [tool.coverage.run]
-source_pkgs = ["prevent", "tests"]
+source_pkgs = ["recall", "tests"]
 branch = true
 parallel = true
 omit = [
 ]
 
 [tool.coverage.paths]
-prevent = ["src/prevent", "*/prevent/src/prevent"]
-tests = ["tests", "*/prevent/tests"]
+recall = ["src/recall", "*/recall/src/recall"]
+tests = ["tests", "*/recall/tests"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -3,14 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    image: prevent:dev
+    image: recall:dev
     volumes:
       - ./src:/app/src:z
   web:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    image: prevent:dev
+    image: recall:dev
     volumes:
       - ./src:/app/src:z
     environment:

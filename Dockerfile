@@ -15,4 +15,4 @@ COPY . /app
 RUN pip install -U pip \
     && pip install .
 
-CMD ["gunicorn", "prevent.dapp:server", "-b", "0.0.0.0:8050"]
+CMD ["gunicorn", "recall.dapp:server", "-b", "0.0.0.0:8050"]

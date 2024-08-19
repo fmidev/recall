@@ -2,9 +2,9 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_leaflet as dl
 
-from prevent.aios import PlaybackSliderAIO
+from recall.aios import PlaybackSliderAIO
 try:
-    from prevent.secrets import FMI_COMMERCIAL_API_KEY
+    from recall.secrets import FMI_COMMERCIAL_API_KEY
     use_commercial_api = True
 except ImportError:
     use_commercial_api = False

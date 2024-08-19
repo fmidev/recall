@@ -12,7 +12,7 @@ import boto3
 import terracotta as tc
 from terracotta.exceptions import InvalidDatabaseError
 
-from prevent.database import list_scan_timestamps
+from recall.database import list_scan_timestamps
 
 
 S3_BUCKET = 'fmi-opendata-radar-geotiff'
