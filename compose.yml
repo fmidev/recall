@@ -13,10 +13,12 @@ services:
       - ./db/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/multibase.sh:Z
     ports:
       - "5432:5432"
+    restart: on-failure
   redis:
     image: "redis:alpine"
     ports:
       - "6379:6379"
+    restart: on-failure
   terracotta:
     build: ./terracotta
     image: terracotta:latest
@@ -32,6 +34,7 @@ services:
       - /tmp/prevent:/tmp/prevent:z
     ports:
       - "8088:8088"
+    restart: on-failure
     depends_on:
       - db
   celery_worker:
@@ -49,6 +52,7 @@ services:
       TC_EXTRA_CMAP_FOLDER: /tmp/prevent/colormaps
     volumes:
       - /tmp/prevent:/tmp/prevent:z
+    restart: on-failure
     depends_on:
       - db
       - redis
