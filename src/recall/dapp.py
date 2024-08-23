@@ -33,7 +33,8 @@ def create_app():
     celery_app = Celery(__name__, broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
     callman = CeleryManager(celery_app)
     app = Dash(
-        __name__, 
+        __name__,
+        title='Recall',
         background_callback_manager=callman,
         external_stylesheets=[
             dbc.themes.BOOTSTRAP,
