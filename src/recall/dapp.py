@@ -5,25 +5,22 @@ import datetime
 
 from dash import Dash, Input, Output, State, CeleryManager, callback
 from dash.exceptions import PreventUpdate
-import dash_leaflet as dl
 import dash_bootstrap_components as dbc
 from celery import Celery
 from flask_migrate import Migrate
 
 from recall.database import list_scan_timestamps
 from recall.database.models import Event, Tag, Radar
-from recall.database.queries import get_coords, initial_db_setup, add_event
+from recall.database.queries import initial_db_setup, add_event
 from recall.database.connection import db
-from recall.layout import BASEMAP, create_layout
-from recall.terracotta.client import get_singleband_url
+from recall.layout import create_layout
 from recall.terracotta.ingest import insert_event
 from recall.aios import PlaybackSliderAIO
 from recall.utils import timestamp_marks
-from recall.visuals import cmap2hex
 from recall.callbacks.tags import populate_tag_collection, tag_selected, add_tag, save_tag, delete_tag
+from recall.callbacks.map import update_radar_layers, update_viewport
 
 
-DEFAULT_COORDS = (64.0, 26.5)
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/recall')
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
@@ -169,31 +166,6 @@ def ingest_all_events(n_clicks):
 
 
 @callback(
-    Output('map', 'children'),
-    Input('event-dropdown', 'value'),
-    Input(PlaybackSliderAIO.ids.slider('playback'), 'value'),
-)
-def update_radar_layers(event_id, slider_val):
-    """Update the radar image URL based on the selected event."""
-    cmap = 'gist_ncar'
-    layers = list(BASEMAP)
-    if not event_id:
-        return layers
-    event = db.session.query(Event).get(event_id)
-    timestamps = list_scan_timestamps(event)
-    radar_name = event.radar.name
-    product = 'DBZH'
-    itimestep = slider_val
-    for i, timestamp in enumerate(timestamps):
-        url = get_singleband_url(timestamp, radar_name, product, colormap=cmap+'_cut', stretch_range='[0,255]')
-        opacity = 0.7 if i == itimestep else 0.0
-        layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
-    layers.append(dl.Colorbar(id='cbar', colorscale=cmap2hex(cmap),
-                              nTicks=5, width=20, height=250, min=-32, max=96, position='topright'))
-    return layers
-
-
-@callback(
     Output(PlaybackSliderAIO.ids.slider('playback'), 'marks'),
     Output(PlaybackSliderAIO.ids.slider('playback'), 'max'),
     Input('event-dropdown', 'value'),
@@ -298,20 +270,6 @@ def delete_event(n_clicks, event_id):
     db.session.delete(event)
     db.session.commit()
     return 0, None, {'status': 'deleted'}
-
-
-@callback(
-    Output('map', 'viewport'),
-    Input('event-dropdown', 'value')
-)
-def update_viewport(event_id):
-    """Update the map viewport based on the selected event."""
-    if event_id:
-        event = db.session.query(Event).get(event_id)
-        lat, lon = get_coords(db, event.radar)
-        return dict(center=(lat, lon), zoom=8, transition='flyTo')
-    else:
-        return dict(center=DEFAULT_COORDS, zoom=6, transition='flyTo')
 
 
 def main(**kws):
