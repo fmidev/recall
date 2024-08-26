@@ -216,9 +216,10 @@ def populate_radar_picker(_):
 
 @callback(
     Output('tag-picker', 'options'),
-    Input('startup-interval', 'disabled')
+    Input('startup-interval', 'disabled'),
+    Input('tag-update-signal', 'data'),
 )
-def populate_tag_picker(_):
+def populate_tag_picker(_, __):
     """Populate the tag picker with tags from the database."""
     tags = db.session.query(Tag).order_by(Tag.name).all()
     if not tags:
