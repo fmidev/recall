@@ -1,6 +1,6 @@
 """Callbacks for the tag management tab."""
 
-from dash import Input, Output, State, callback, ALL
+from dash import Input, Output, State, callback, ALL, ctx
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
@@ -15,7 +15,7 @@ from recall.database.models import Tag
     Input('tag-update-signal', 'data'),
     State('selected-tag-id', 'data'),
 )
-def populate_tag_collection(tag_name, _, selected_tag_id):
+def populate_tag_collection(tag_name, signal, selected_tag_id):
     """Populate the tag collection.
 
     The tag collection holds all tags in the database.
@@ -63,13 +63,17 @@ def populate_tag_collection(tag_name, _, selected_tag_id):
 )
 def tag_selected(selected_tag_id, signal, n_clicks, button_ids):
     """Update the tag form based on the selected tag."""
-    if any(n_clicks):
-        # Find the index of the clicked button
-        clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
-        button_id = button_ids[clicked_index]
-        tag_id = button_id['index']
-        if tag_id == selected_tag_id:
-            return '', '', -1, True, True
+    if type(ctx.triggered_id) != str: # button event
+        if any(n_clicks):
+            # Find the index of the clicked button
+            clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)
+            button_id = button_ids[clicked_index]
+            tag_id = button_id['index']
+            if tag_id == selected_tag_id:
+                return '', '', -1, True, True
+        else:
+            # it's unclear why we would get here, but it happens
+            raise PreventUpdate
     elif signal.get('status') == 'added':
         tag_id = signal.get('id')
     elif signal.get('status') == 'deleted':
