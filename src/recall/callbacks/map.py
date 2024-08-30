@@ -12,6 +12,7 @@ from recall.visuals import cmap2hex
 
 
 DEFAULT_COORDS = (64.0, 26.5)
+RADAR_LAYER_OPACITY = 0.8
 
 
 @callback(
@@ -32,7 +33,7 @@ def update_radar_layers(event_id, slider_val):
     itimestep = slider_val
     for i, timestamp in enumerate(timestamps):
         url = get_singleband_url(timestamp, radar_name, product, colormap=cmap+'_cut', stretch_range='[0,255]')
-        opacity = 0.7 if i == itimestep else 0.0
+        opacity = RADAR_LAYER_OPACITY if i == itimestep else 0.0
         layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
     layers.append(dl.Colorbar(id='cbar', colorscale=cmap2hex(cmap),
                               nTicks=5, width=20, height=250, min=-32, max=96, position='topright'))
