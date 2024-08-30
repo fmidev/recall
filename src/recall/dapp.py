@@ -273,8 +273,9 @@ def delete_event(n_clicks, event_id):
 
 
 def main(**kws):
-    app.run_server(host='0.0.0.0', **kws)
+    """For development purposes only."""
+    app.run(debug=True, host='0.0.0.0', port='8050', **kws)
 
 
 if __name__ == '__main__':
-    main(debug=True)
+    main()

@@ -14,10 +14,10 @@ services:
     volumes:
       - ./src:/app/src:z
     environment:
-      DASH_DEBUG: true
+      DASH_DEBUG: "true"
       TC_LOGLEVEL: debug
-      TC_DEBUG: true
+      TC_DEBUG: "true"
   terracotta:
     environment:
       TC_LOGLEVEL: debug
-      TC_DEBUG: true
+      TC_DEBUG: "true"

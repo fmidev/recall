@@ -18,5 +18,5 @@ RUN pip install -U pip \
 # Expose the port the app runs on
 EXPOSE 8050
 
-# Command to run the app
-CMD ["gunicorn", "recall.dapp:server", "-b", "0.0.0.0:8050", "--reload"]
+# Run the app in debug mode
+CMD ["recall"]
