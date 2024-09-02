@@ -96,7 +96,7 @@ def create_layout():
     ], className=BUTTONS_GRID_CLASS)
     tag_tab_content = html.Div([
         dcc.Store(id='selected-tag-id', data=-1),
-        dcc.Store(id='tag-update-signal', data={}), # signal for updating the tag collection
+        dcc.Store(id='tag-update-signal', data={}),  # signal for updating the tag collection
         dbc.Card([
             dbc.CardHeader(
                 html.Div([], id='tag-collection', className='d-flex flex-wrap')
@@ -122,7 +122,7 @@ def create_layout():
     ])
     return dbc.Container([
         dcc.Interval(id='startup-interval', interval=1, n_intervals=0, max_intervals=1),
-        dcc.Store(id='events-update-signal'), # signal for updating the event dropdown
+        dcc.Store(id='events-update-signal'),  # signal for updating the event dropdown
         dbc.Row([
             dbc.Col([
                 tabs

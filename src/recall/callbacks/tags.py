@@ -63,7 +63,7 @@ def populate_tag_collection(tag_name, signal, selected_tag_id):
 )
 def tag_selected(selected_tag_id, signal, n_clicks, button_ids):
     """Update the tag form based on the selected tag."""
-    if type(ctx.triggered_id) != str: # button event
+    if type(ctx.triggered_id) != str:  # button event
         if any(n_clicks):
             # Find the index of the clicked button
             clicked_index = next(i for i, clicks in enumerate(n_clicks) if clicks)

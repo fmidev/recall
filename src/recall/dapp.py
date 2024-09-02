@@ -17,9 +17,9 @@ from recall.layout import create_layout
 from recall.terracotta.ingest import insert_event
 from recall.aios import PlaybackSliderAIO
 from recall.utils import timestamp_marks
-from recall.callbacks.events import update_end_time_min
-from recall.callbacks.tags import populate_tag_collection, tag_selected, add_tag, save_tag, delete_tag
-from recall.callbacks.map import update_radar_layers, update_viewport
+import recall.callbacks.events  # noqa: F401
+import recall.callbacks.tags  # noqa: F401
+import recall.callbacks.map  # noqa: F401
 
 
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/recall')
