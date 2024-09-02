@@ -17,6 +17,7 @@ from recall.layout import create_layout
 from recall.terracotta.ingest import insert_event
 from recall.aios import PlaybackSliderAIO
 from recall.utils import timestamp_marks
+from recall.callbacks.events import update_end_time_min
 from recall.callbacks.tags import populate_tag_collection, tag_selected, add_tag, save_tag, delete_tag
 from recall.callbacks.map import update_radar_layers, update_viewport
 
@@ -78,7 +79,7 @@ def run_initial_setup(n_intervals):
     background=True,
     running=[
         (Output('add-event', 'children'), 'Submitting event...', 'Save as new'),
-        (Output('event-form-progress', 'class_name'), '', 'd-none'),
+        (Output('event-form-progress', 'class_name'), 'my-3', 'd-none'),
     ],
     progress=[
         Output('event-form-progress', 'value'),
@@ -195,7 +196,9 @@ def populate_event_dropdown(_, __):
     options = []
     for event in events:
         tags = ', '.join([tag.name for tag in event.tags])
-        label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}: {tags}"
+        label = f"{event.start_time.strftime('%Y-%m-%d')} {event.radar.name}"
+        if tags:
+            label += f": {tags}"
         options.append({'label': label, 'value': event.id})
     return options
 
