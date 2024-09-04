@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.scripts]
-recall = "recall.dapp:main"
+recall = "recall.app:main"
 
 [project.urls]
 #Documentation = "https://github.com/Jussi Tiira/recall#readme"
