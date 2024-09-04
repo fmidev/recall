@@ -27,26 +27,31 @@ def create_layout():
     # event form using dbc.Form, WITHOUT using dbc.FormGroup
     time_span_input = html.Div([
         dbc.Row([
-            dbc.Label('From', width='auto'),
+            dbc.Label('From', width='auto', html_for='start-time'),
             dbc.Col([
                 dbc.Input(id='start-time', type='datetime-local', placeholder='Start Time'),
             ]),
-            dbc.Label('to', width='auto'),
+            dbc.Label('to', width='auto', html_for='end-time'),
             dbc.Col([
                 dbc.Input(id='end-time', type='datetime-local', placeholder='End Time'),
-            ])
+            ]),
+            dbc.Col([
+                dbc.Label('UTC', width='auto')
+            ]),
         ]),
     ], className='mb-3')
     description_input = html.Div([
         dbc.Input(id='event-description', type='text', placeholder='Event description')
     ], className='mb-3')
     radar_picker = dbc.Row([
-        dbc.Label('Radar', width='auto'),
+        dbc.Label('Radar', width='auto', html_for='radar-picker'),
         dbc.Col(dcc.Dropdown(id='radar-picker', placeholder='Select radar...')),
     ], className='mb-3')
-    tag_picker = html.Div([
-        html.P('Tags'),
-        dcc.Dropdown(id='tag-picker', multi=True, placeholder='Select tags...'),
+    tag_picker = dbc.Row([
+        dbc.Col([
+            dbc.Label('Tags', html_for='tag-picker'),
+            dcc.Dropdown(id='tag-picker', multi=True, placeholder='Select tags...'),
+        ]),
     ], className='mb-3')
     add_event_button = dbc.Button('Save as new', color='primary', id='add-event')
     save_event_button = dbc.Button('Save changes', color='primary', id='save-event')
