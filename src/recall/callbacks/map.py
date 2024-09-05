@@ -17,6 +17,7 @@ RADAR_LAYER_OPACITY = 0.8
 
 @callback(
     Output('map', 'children'),
+    Output('map-timestamp', 'children'),
     Input('event-dropdown', 'value'),
     Input(PlaybackSliderAIO.ids.slider('playback'), 'value'),
 )
@@ -25,7 +26,7 @@ def update_radar_layers(event_id, slider_val):
     cmap = 'gist_ncar'
     layers = list(BASEMAP)
     if not event_id:
-        return layers
+        return layers, ''
     event = db.session.query(Event).get(event_id)
     timestamps = list_scan_timestamps(event)
     radar_name = event.radar.name
@@ -37,7 +38,7 @@ def update_radar_layers(event_id, slider_val):
         layers.append(dl.TileLayer(id=f'scan{i}', url=url, opacity=opacity))
     layers.append(dl.Colorbar(id='cbar', colorscale=cmap2hex(cmap),
                               nTicks=5, width=20, height=250, min=-32, max=96, position='topright'))
-    return layers
+    return layers, timestamps[itimestep].strftime('%Y-%m-%d %H:%M UTC')
 
 
 @callback(
@@ -50,5 +51,4 @@ def update_viewport(event_id):
         event = db.session.query(Event).get(event_id)
         lat, lon = get_coords(db, event.radar)
         return dict(center=(lat, lon), zoom=8, transition='flyTo')
-    else:
-        return dict(center=DEFAULT_COORDS, zoom=6, transition='flyTo')
+    return dict(center=DEFAULT_COORDS, zoom=6, transition='flyTo')

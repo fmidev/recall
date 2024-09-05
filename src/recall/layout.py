@@ -133,9 +133,19 @@ def create_layout():
                 tabs
             ], lg=4),
             dbc.Col([
-                dl.Map(children=BASEMAP,
-                    id='map', center=(61.9241, 25.7482), zoom=6,
-                    style={'width': '100%', 'height': '100vh'})
+                html.Div([
+                    html.Div(
+                        id='map-timestamp',
+                        className='leaflet-bottom leaflet-left leaflet-control bg-light text-dark p-2 rounded',
+                    ),
+                    html.Div([
+                        dl.Map(
+                            children=BASEMAP,
+                            id='map', center=(61.9241, 25.7482), zoom=6,
+                            style={'width': '100%', 'height': '100vh'}
+                        )
+                    ])
+                ], className='position-relative')
             ])
         ])
     ], fluid=True)
