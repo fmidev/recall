@@ -88,7 +88,7 @@ def run_initial_setup(n_intervals):
     ],
     prevent_initial_call=True
 )
-def submit_event(set_progress, n_clicks, start_time, end_time, description, radar_id, tag_ids):
+def submit_event(set_progress, n_clicks, start_time, end_time, description, radar_id: int, tag_ids):
     """Submit an event to the database."""
     if not n_clicks:
         raise PreventUpdate
@@ -128,7 +128,7 @@ def submit_event(set_progress, n_clicks, start_time, end_time, description, rada
     ],
     prevent_initial_call=True
 )
-def update_event(set_progress, n_clicks, event_id, start_time, end_time, description, radar_id, tag_ids):
+def update_event(set_progress, n_clicks, event_id: int, start_time, end_time, description: str, radar_id: int, tag_ids):
     """Update an event in the database."""
     if not n_clicks:
         raise PreventUpdate
@@ -171,7 +171,7 @@ def ingest_all_events(n_clicks):
     Input('event-dropdown', 'value'),
     Input('events-update-signal', 'data')
 )
-def update_slider_marks(event_id, _):
+def update_slider_marks(event_id: int, _):
     """Update the slider marks based on the selected event."""
     if not event_id:
         return {}, 1
@@ -244,7 +244,7 @@ def populate_tag_picker(_, __):
     Input('event-dropdown', 'value'),
     Input('startup-interval', 'disabled')
 )
-def update_selected_event(event_id, _):
+def update_selected_event(event_id: int, _):
     """Update the selected event text based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
@@ -265,7 +265,7 @@ def update_selected_event(event_id, _):
     State('event-dropdown', 'value'),
     prevent_initial_call=True
 )
-def delete_event(n_clicks, event_id):
+def delete_event(n_clicks, event_id: int):
     """Delete the selected event from the database."""
     if not n_clicks:
         raise PreventUpdate

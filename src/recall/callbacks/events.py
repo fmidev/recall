@@ -18,6 +18,6 @@ def update_end_time_min(start_time):
     Input('end-time', 'value'),
     Input('radar-picker', 'value'),
 )
-def disable_add_event_button(start_time, end_time, radar_id):
+def disable_add_event_button(start_time, end_time, radar_id: int):
     """Disable the add-event button if required fields are empty."""
     return not all([start_time, end_time, radar_id])

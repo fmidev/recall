@@ -21,7 +21,7 @@ RADAR_LAYER_OPACITY = 0.8
     Input('event-dropdown', 'value'),
     Input(PlaybackSliderAIO.ids.slider('playback'), 'value'),
 )
-def update_radar_layers(event_id, slider_val):
+def update_radar_layers(event_id: int, slider_val: int):
     """Update the radar image URL based on the selected event."""
     cmap = 'gist_ncar'
     layers = list(BASEMAP)
@@ -45,7 +45,7 @@ def update_radar_layers(event_id, slider_val):
     Output('map', 'viewport'),
     Input('event-dropdown', 'value')
 )
-def update_viewport(event_id):
+def update_viewport(event_id: int):
     """Update the map viewport based on the selected event."""
     if event_id:
         event = db.session.query(Event).get(event_id)
