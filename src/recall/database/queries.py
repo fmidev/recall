@@ -23,10 +23,23 @@ def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
         end_time=end_time,
         description=description
     )
+    if event_overlaps_existing(db, event):
+        raise ValueError('Event overlaps with existing event')
     insert_event(event, **kws)
     db.session.add(event)
     db.session.commit()
     return event
+
+
+def event_overlaps_existing(db, event):
+    """Check if the event overlaps with any existing events."""
+    events = db.session.query(Event).filter(Event.radar == event.radar).all()
+    for e in events:
+        cond1 = e.start_time <= event.start_time <= e.end_time
+        cond2 = e.start_time <= event.end_time <= e.end_time
+        if cond1 or cond2:
+            return True
+    return False
 
 
 def sample_events(db):

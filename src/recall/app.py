@@ -10,7 +10,7 @@ from celery import Celery
 from flask_migrate import Migrate
 
 from recall.database.models import Event, Tag, Radar
-from recall.database.queries import initial_db_setup, add_event
+from recall.database.queries import initial_db_setup, add_event, event_overlaps_existing
 from recall.database.connection import db
 from recall.layout import create_layout
 from recall.terracotta.ingest import insert_event
@@ -96,7 +96,10 @@ def submit_event(set_progress, n_clicks, start_time, end_time, description, rada
         start_time = datetime.datetime.fromisoformat(start_time)
         end_time = datetime.datetime.fromisoformat(end_time)
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
-        add_event(db, radar, start_time, end_time, description, tags, set_progress=set_progress)
+        try:
+            add_event(db, radar, start_time, end_time, description, tags, set_progress=set_progress)
+        except ValueError:
+            return 0, {'status': 'overlap'}
     return 0, {'status': 'added'}
 
 
@@ -141,6 +144,9 @@ def update_event(set_progress, n_clicks, event_id: int, start_time, end_time, de
         event.end_time = end_time
         event.description = description
         event.tags = tags
+        if event_overlaps_existing(db, event):
+            db.session.rollback()
+            return 0, {'status': 'overlap'}
         db.session.commit()
         insert_event(event, set_progress=set_progress)
     return 0, {'status': 'updated'}
