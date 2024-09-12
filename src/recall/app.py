@@ -17,6 +17,7 @@ from recall.terracotta.ingest import insert_event
 import recall.callbacks.events  # noqa: F401
 import recall.callbacks.tags  # noqa: F401
 import recall.callbacks.map  # noqa: F401
+import recall.callbacks.maintenance  # noqa: F401
 
 
 DATABASE_URI = os.environ.get('PREVENT_DB_URI', 'postgresql://postgres:postgres@localhost/recall')

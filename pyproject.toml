@@ -37,6 +37,7 @@ dependencies = [
   "psycopg2-binary",
   "dash-bootstrap-components",
   "matplotlib",
+  "tomli-w",
 ]
 
 [project.scripts]

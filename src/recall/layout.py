@@ -113,13 +113,23 @@ def create_layout():
             ]),
         ], class_name='mt-3'),
     ])
-    maintenance_tab_content = dbc.Card(
-        dbc.CardBody([
-            html.P('Ingest all events to the terracotta database.'),
-            dbc.Button('Ingest all', id='ingest-all', color='primary'),
-        ]),
-        class_name='mt-3'
-    )
+    maintenance_tab_content = html.Div([
+        dbc.Card(
+            dbc.CardBody([
+                html.P('Ingest all events to the terracotta database.'),
+                dbc.Button('Ingest all', id='ingest-all', color='primary'),
+            ]),
+            class_name='mt-3'
+        ),
+        dbc.Card(
+            dbc.CardBody([
+                html.P('Export all events.'),
+                dbc.Button('Export as toml', id='btn-export-toml', color='primary'),
+                dcc.Download(id='download-toml'),
+            ]),
+            class_name='mt-3'
+        ),
+    ])
     tabs = dbc.Tabs([
         dbc.Tab(event_controls_tab_content, label='Events'),
         dbc.Tab(tag_tab_content, label='Tags'),

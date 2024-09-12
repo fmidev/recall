@@ -53,3 +53,20 @@ def initial_db_setup(db, server):
         db.create_all()
         db.session.commit()
         sample_events(db)
+
+
+def events_list():
+    """Generate a list of dictionaries containing event information."""
+    events = db.session.query(Event).order_by(Event.start_time).all()
+    event_list = []
+    for event in events:
+        e = {
+            'id': event.id,
+            'radar': event.radar.name,
+            'start_time': event.start_time,
+            'end_time': event.end_time,
+            'description': event.description,
+            'tags': [tag.name for tag in event.tags]
+        }
+        event_list.append(e)
+    return event_list
