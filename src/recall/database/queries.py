@@ -2,8 +2,9 @@
 
 import datetime
 
-from recall.database.connection import db
+from sqlalchemy import or_, and_
 
+from recall.database.connection import db
 from recall.terracotta.ingest import insert_event
 from recall.database.models import Event, Radar, Tag
 
@@ -33,13 +34,14 @@ def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
 
 def event_overlaps_existing(db, event):
     """Check if the event overlaps with any existing events."""
-    events = db.session.query(Event).filter(Event.radar == event.radar).all()
-    for e in events:
-        cond1 = e.start_time <= event.start_time <= e.end_time
-        cond2 = e.start_time <= event.end_time <= e.end_time
-        if cond1 or cond2:
-            return True
-    return False
+    filter_radar = Event.radar == event.radar
+    filter_separate = Event.id != event.id
+    filter_overlap = or_(
+        and_(Event.start_time <= event.start_time, event.start_time <= Event.end_time),
+        and_(Event.start_time <= event.end_time, event.end_time <= Event.end_time)
+    )
+    events = db.session.query(Event).filter(filter_radar, filter_separate, filter_overlap).all()
+    return len(events) > 0
 
 
 def sample_events(db):
