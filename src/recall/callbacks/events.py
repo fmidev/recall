@@ -138,3 +138,26 @@ def update_slider_marks(event_id: int, _):
     timestamps = list_scan_timestamps(event)
     marks = timestamp_marks(timestamps)
     return marks, len(timestamps) - 1
+
+
+@callback(
+    Output('download-h5-link', 'children'),
+    Output('download-h5-link', 'href'),
+    Input('event-dropdown', 'value'),
+    Input('radar-picker', 'value'),
+    Input(PlaybackSliderAIO.ids.slider('playback'), 'value')
+)
+def update_h5_download_link(event_id: int, radar_id: int, slider_val: int):
+    """Update the HDF5 download link based on currently viewed scan."""
+    if not radar_id or not event_id:
+        return '', '#'
+    event = db.session.query(Event).get(event_id)
+    radar = db.session.query(Radar).get(radar_id)
+    timestamps = list_scan_timestamps(event)
+    if not timestamps:
+        return '', '#'
+    timestamp = timestamps[slider_val]
+    date_str = timestamp.strftime('%Y%m%d%H%M')
+    filename = f'{date_str}_radar.polar.{radar.name}.h5'
+    href = f'http://dev.tutka.fmi.fi/nutshell/NutShell?product={filename}'
+    return filename, href

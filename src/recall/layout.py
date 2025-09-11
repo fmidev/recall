@@ -90,6 +90,18 @@ def create_layout():
             class_name='mt-3'
         ),
         event_form_card,
+        dbc.Card(
+            dbc.CardBody([
+                html.H4('Download', className='card-title'),
+                html.A(
+                    "",
+                    id="download-h5-link",
+                    href="#",
+                    target="_blank"
+                ),
+            ]),
+            class_name='mt-3'
+        )
     ])
     add_tag_button = dbc.Button('Add new', color='primary', id='add-tag')
     save_tag_button = dbc.Button('Save changes', color='primary', id='save-tag', disabled=True)
