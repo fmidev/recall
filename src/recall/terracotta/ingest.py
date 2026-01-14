@@ -24,27 +24,33 @@ KEY_DESCRIPTIONS = {
 }
 DB_URI = os.environ.get('TC_DB_URI', 'postgresql://postgres:postgres@localhost:5432/terracotta')
 
+# Module-level driver instance to avoid repeated table reflection warnings
+_driver = None
+
+
+def get_driver():
+    """Get or create a cached Terracotta driver instance."""
+    global _driver
+    if _driver is None:
+        _driver = tc.get_driver(DB_URI)
+        # Initialize database if needed
+        try:
+            _ = _driver.key_names
+        except InvalidDatabaseError:
+            _driver.meta_store._initialize_database(KEYS, key_descriptions=KEY_DESCRIPTIONS)
+    return _driver
+
 
 def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
     return f's3://{S3_BUCKET}/{timestamp.strftime("%Y/%m/%d")}/{radar}/{timestamp.strftime("%Y%m%d%H%M")}_{radar}_{product}.tif'
 
 
-def insert(timestamp: datetime.datetime, radar: str, product: str):
+def insert(timestamp: datetime.datetime, radar: str, product: str, driver=None):
     """Insert radar metadata into the terracotta database."""
     product = product.upper()
-    #
-    driver = tc.get_driver(DB_URI)
-    config = Config(signature_version=UNSIGNED, region_name='eu-west-1')
-    s3 = boto3.resource('s3', config=config)
-    bucket = s3.Bucket(S3_BUCKET)
-    # sanity 
-    try:
-        assert driver.key_names == KEYS
-    except InvalidDatabaseError:
-        driver.meta_store._initialize_database(KEYS, key_descriptions=KEY_DESCRIPTIONS)
-        assert driver.key_names == KEYS
+    if driver is None:
+        driver = get_driver()
     available_datasets = driver.get_datasets()
-    #
     s3path = get_s3path(timestamp, radar, product)
     tstr = timestamp.strftime('%Y%m%d%H%M')
     if 'DBZ' in product:
@@ -71,6 +77,7 @@ def dummy_progress_fun(*args, **kws):
 
 def insert_event(event, set_progress=dummy_progress_fun):
     """Insert all radar metadata for an event into the terracotta database."""
+    driver = get_driver()
     times = list_scan_timestamps(event)
     radar = event.radar
     radar_name = radar.name
@@ -79,7 +86,7 @@ def insert_event(event, set_progress=dummy_progress_fun):
     for i, time in enumerate(times):
         for product in ('DBZH', 'DBZ-1'):
             try:
-                insert(time, radar_name, product)
+                insert(time, radar_name, product, driver=driver)
                 break
             except Exception as e:
                 print(e)
