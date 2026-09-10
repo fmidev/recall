@@ -1,9 +1,8 @@
 """Methods for interacting with the database."""
 
-import datetime
+from sqlalchemy.exc import IntegrityError
 
 from recall.database.connection import db
-from recall.terracotta.ingest import insert_event
 from recall.database.models import Event, Radar, Tag
 from recall.domain import EventValidationError, validate_event_interval
 
@@ -14,7 +13,7 @@ def get_coords(db, radar):
     return lat, lon
 
 
-def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
+def add_event(db, radar, start_time, end_time, description, tags=None):
     """Add an event to the database."""
     start_time, end_time = validate_event_interval(start_time, end_time)
     event = Event(
@@ -22,14 +21,59 @@ def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
         tags=tags or [],
         start_time=start_time,
         end_time=end_time,
-        description=description
+        description=description,
     )
-    if event_overlaps_existing(db, event):
-        raise EventValidationError('Event overlaps with an existing event for this radar.')
-    insert_event(event, **kws)
-    db.session.add(event)
-    db.session.commit()
+    _persist_event(db, event)
     return event
+
+
+def _persist_event(db, event):
+    if event_overlaps_existing(db, event):
+        db.session.rollback()
+        raise EventValidationError(
+            "Event overlaps with an existing event for this radar."
+        )
+    db.session.add(event)
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        if getattr(exc.orig, "pgcode", None) == "23P01":
+            raise EventValidationError(
+                "Event overlaps with an existing event for this radar."
+            ) from exc
+        raise
+
+
+def save_event(radar_id, start_time, end_time, description, tag_ids, event_id=None):
+    """Save catalog data only; return the event and whether imagery needs preparation."""
+    start_time, end_time = validate_event_interval(start_time, end_time)
+    radar = db.session.get(Radar, radar_id) if radar_id is not None else None
+    if radar is None:
+        raise EventValidationError("Select an existing radar.")
+    tag_ids = set(tag_ids or [])
+    tags = db.session.scalars(db.select(Tag).where(Tag.id.in_(tag_ids))).all()
+    if {tag.id for tag in tags} != tag_ids:
+        raise EventValidationError("A selected tag no longer exists. Refresh the form.")
+    if event_id is None:
+        return add_event(db, radar, start_time, end_time, description, tags), True
+    event = db.session.get(Event, event_id)
+    if event is None:
+        raise EventValidationError("This event no longer exists. Select another event.")
+    imagery_changed = (event.radar_id, event.start_time, event.end_time) != (
+        radar.id,
+        start_time,
+        end_time,
+    )
+    # Loading the tag relationship must not flush a half-validated edit.
+    with db.session.no_autoflush:
+        event.radar = radar
+        event.start_time = start_time
+        event.end_time = end_time
+        event.description = description
+        event.tags = tags
+    _persist_event(db, event)
+    return event, imagery_changed
 
 
 def event_overlaps_existing(db, event):
@@ -45,44 +89,18 @@ def event_overlaps_existing(db, event):
         return db.session.scalar(query.limit(1)) is not None
 
 
-def sample_events(db):
-    events_table_empty = db.session.execute(db.select(Event)).first() is None
-    if not events_table_empty:
-        return
-    fikor = db.session.execute(db.select(Radar).filter_by(name="fikor")).scalar_one()
-    rain = db.session.execute(db.select(Tag).filter_by(name="rain")).scalar_one()
-    events = []
-    events.append(add_event(
-        db,
-        radar=fikor,
-        start_time=datetime.datetime(2023, 8, 28, 10, 0, 0),
-        end_time=datetime.datetime(2023, 8, 28, 11, 0, 0),
-        description='Low pressure system',
-        tags=[rain]
-    ))
-    return events
-
-
-def initial_db_setup(db, server):
-    print('Setting up database')
-    with server.app_context():
-        db.create_all()
-        db.session.commit()
-        sample_events(db)
-
-
 def events_list():
     """Generate a list of dictionaries containing event information."""
     events = db.session.query(Event).order_by(Event.start_time).all()
     event_list = []
     for event in events:
         e = {
-            'id': event.id,
-            'radar': event.radar.name,
-            'start_time': event.start_time,
-            'end_time': event.end_time,
-            'description': event.description,
-            'tags': [tag.name for tag in event.tags]
+            "id": event.id,
+            "radar": event.radar.name,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "description": event.description,
+            "tags": [tag.name for tag in event.tags],
         }
         event_list.append(e)
     return event_list

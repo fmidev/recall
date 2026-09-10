@@ -1,94 +1,134 @@
-"""Ingest GeoTIFF files from S3 into a terracotta database."""
+"""Register public radar GeoTIFFs without hiding unavailable or failed scans."""
 
+import logging
 import os
-import datetime
+from dataclasses import dataclass, field
+from datetime import datetime
 
+import boto3
 import rasterio
-from rasterio.session import AWSSession
-from rasterio.errors import CRSError
+import terracotta as tc
 from botocore import UNSIGNED
 from botocore.config import Config
-import boto3
-import terracotta as tc
-from terracotta.exceptions import InvalidDatabaseError
+from botocore.exceptions import BotoCoreError, ClientError
+from rasterio.errors import CRSError, RasterioError
+from sqlalchemy.exc import SQLAlchemyError
 
 from recall.database import list_scan_timestamps
 
 
-S3_BUCKET = 'fmi-opendata-radar-geotiff'
-KEYS = ('timestamp', 'radar', 'product')
+logger = logging.getLogger(__name__)
+S3_BUCKET = "fmi-opendata-radar-geotiff"
+KEYS = ("timestamp", "radar", "product")
 KEY_DESCRIPTIONS = {
-    'timestamp': 'Measurement timestamp',
-    'radar': 'Radar site',
-    'product': 'Product type'
+    "timestamp": "Measurement timestamp",
+    "radar": "Radar site",
+    "product": "Product type",
 }
-DB_URI = os.environ.get('TC_DB_URI', 'postgresql://postgres:postgres@localhost:5432/terracotta')
+DB_URI = os.environ.get("TC_DB_URI", "postgresql://localhost:5432/terracotta")
 
-# Module-level driver instance to avoid repeated table reflection warnings
-_driver = None
+
+class MissingScanError(Exception):
+    """The requested product is absent from the archive."""
+
+
+@dataclass
+class IngestionResult:
+    inserted: int = 0
+    existing: int = 0
+    missing: int = 0
+    failed: int = 0
+    issues: list = field(default_factory=list)
+
+    @property
+    def status(self):
+        return "partial" if self.missing or self.failed else "ready"
 
 
 def get_driver():
-    """Get or create a cached Terracotta driver instance."""
-    global _driver
-    if _driver is None:
-        _driver = tc.get_driver(DB_URI)
-        # Initialize database if needed
-        try:
-            _ = _driver.key_names
-        except InvalidDatabaseError:
-            _driver.meta_store._initialize_database(KEYS, key_descriptions=KEY_DESCRIPTIONS)
-    return _driver
+    """Use Terracotta's cached public driver; initialization is an explicit CLI step."""
+    return tc.get_driver(DB_URI)
 
 
-def get_s3path(timestamp: datetime.datetime, radar: str, product: str):
-    return f's3://{S3_BUCKET}/{timestamp.strftime("%Y/%m/%d")}/{radar}/{timestamp.strftime("%Y%m%d%H%M")}_{radar}_{product}.tif'
+def get_s3path(timestamp: datetime, radar: str, product: str):
+    return (
+        f"s3://{S3_BUCKET}/{timestamp:%Y/%m/%d}/{radar}/"
+        f"{timestamp:%Y%m%d%H%M}_{radar}_{product.upper()}.tif"
+    )
 
 
-def insert(timestamp: datetime.datetime, radar: str, product: str, driver=None):
-    """Insert radar metadata into the terracotta database."""
+def insert(timestamp, radar, product, *, driver=None, s3=None):
+    """Return inserted/existing, or raise a specific archive/driver error."""
+    driver = driver if driver is not None else get_driver()
     product = product.upper()
-    if driver is None:
-        driver = get_driver()
-    available_datasets = driver.get_datasets()
+    product_key = "DBZH" if product in ("DBZH", "DBZ-1") else product
+    keys = (timestamp.strftime("%Y%m%d%H%M"), radar, product_key)
+    if driver.get_datasets(dict(zip(KEYS, keys))):
+        return "existing"
+    s3 = s3 if s3 is not None else _s3_client()
     s3path = get_s3path(timestamp, radar, product)
-    tstr = timestamp.strftime('%Y%m%d%H%M')
-    if 'DBZ' in product:
-        product_key = 'DBZH'
-    else:
-        product_key = product
-    keys = (tstr, radar, product_key)
-    if keys in available_datasets:
-        print('Skipping', s3path)
-        return
-    print('Ingesting', s3path)
-    with driver.connect():
-        with rasterio.Env(AWSSession(boto3.Session(), requester_pays=False), AWS_NO_SIGN_REQUEST='YES'):
-            try:
-                driver.insert(keys, s3path)
-            except CRSError as e:
-                print(e)
-                print(f'Likely not a geotiff: {s3path}')
+    key = s3path[len(f"s3://{S3_BUCKET}/"):]
+    try:
+        s3.head_object(Bucket=S3_BUCKET, Key=key)
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound"):
+            raise MissingScanError(s3path) from exc
+        raise
+    with rasterio.Env(AWS_NO_SIGN_REQUEST="YES"):
+        driver.insert(keys, s3path)
+    logger.info("Registered radar scan %s", s3path)
+    return "inserted"
 
 
-def dummy_progress_fun(*args, **kws):
-    pass
+def _s3_client():
+    return boto3.client(
+        "s3",
+        config=Config(
+            signature_version=UNSIGNED,
+            retries={"mode": "standard", "max_attempts": 3},
+            connect_timeout=10,
+            read_timeout=30,
+        ),
+    )
 
 
-def insert_event(event, set_progress=dummy_progress_fun):
-    """Insert all radar metadata for an event into the terracotta database."""
+def ingest_scans(timestamps, radar_name, set_progress=None):
+    """Try legacy reflectivity only for an absent primary product; report every scan."""
     driver = get_driver()
-    times = list_scan_timestamps(event)
-    radar = event.radar
-    radar_name = radar.name
-    n_times = len(times)
-    print(f'Inserting {n_times} timestamps for {radar_name}')
-    for i, time in enumerate(times):
-        for product in ('DBZH', 'DBZ-1'):
-            try:
-                insert(time, radar_name, product, driver=driver)
-                break
-            except Exception as e:
-                print(e)
-            finally:
-                set_progress((i+1, n_times, f'{i+1}/{n_times}'))
+    # Fail once, clearly, for incompatible/uninitialized metadata databases.
+    if tuple(driver.key_names) != KEYS:
+        raise tc.exceptions.InvalidDatabaseError("Unexpected Terracotta dataset keys.")
+    s3 = _s3_client()
+    result = IngestionResult()
+    for i, timestamp in enumerate(timestamps):
+        try:
+            for product in ("DBZH", "DBZ-1"):
+                try:
+                    outcome = insert(
+                        timestamp, radar_name, product, driver=driver, s3=s3
+                    )
+                    break
+                except MissingScanError:
+                    if product == "DBZ-1":
+                        raise
+            if outcome == "inserted":
+                result.inserted += 1
+            else:
+                result.existing += 1
+        except MissingScanError:
+            result.missing += 1
+            result.issues.append(f"{timestamp:%Y-%m-%d %H:%M} UTC: scan unavailable")
+            logger.warning("Missing scan for %s at %s", radar_name, timestamp)
+        except (BotoCoreError, ClientError, CRSError, RasterioError, SQLAlchemyError) as exc:
+            result.failed += 1
+            result.issues.append(
+                f"{timestamp:%Y-%m-%d %H:%M} UTC: {type(exc).__name__}"
+            )
+            logger.exception("Failed scan for %s at %s", radar_name, timestamp)
+        if set_progress is not None:
+            set_progress((i + 1, len(timestamps), f"{i + 1}/{len(timestamps)}"))
+    return result
+
+
+def insert_event(event, set_progress=None):
+    return ingest_scans(list_scan_timestamps(event), event.radar.name, set_progress)

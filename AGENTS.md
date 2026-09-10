@@ -81,7 +81,10 @@ not a local archive of raw observations.
   `DBZH` dataset key. Changes to products, scaling, or colormaps must stay consistent
   across ingestion, tile URLs, and the displayed legend. Do not conflate encoded pixel
   values with physical reflectivity units (dBZ).
-- Creating/updating events ingests metadata; merely selecting an event does not.
+- Catalog saves do not depend on raster availability. New events and changes to
+  radar/times request background preparation; metadata-only edits do not.
+  "Prepare imagery" retries preparation for the saved selection. Selecting an
+  event alone does not ingest. Results distinguish available, missing, and failed scans.
   Maintenance **Ingest all** processes every event, not just the selected one.
   HDF5 download links use a separate FMI NutShell endpoint; availability can depend
   on the user's network. TOML export is catalog metadata, not radar imagery or a full
@@ -97,7 +100,9 @@ not a local archive of raw observations.
   Reuse AIO ID helpers (`component`, `subcomponent`, `aio_id`) and existing `MATCH`/`ALL`
   patterns. Preserve intentional `PreventUpdate`, initial-call, and duplicate-output behavior.
 - Keep slow S3/raster work in Celery background callbacks, with meaningful progress and
-  running-state feedback. Worker database access needs a Flask application context.
+  running-state feedback. Imagery preparation uses independent tasks in `tasks.py`,
+  enqueued/polled by `callbacks/ingestion.py`, not superseding Dash background callbacks.
+  Worker database access needs a Flask application context.
   Do not pass live ORM sessions between processes or store user state in module globals.
 - Reuse [database/connection.py](src/recall/database/connection.py)'s shared `db`.
   Make transaction boundaries explicit; account for partial failures across the event
@@ -165,9 +170,8 @@ Do not assume ignored files are excluded from image or wheel builds.
   databases, or run bulk writes against a shared deployment without explicit approval.
   Use disposable data for verification. Compose credentials are development defaults,
   not a production security configuration.
-- Startup runs `db.create_all()`, seeds radars/tags, and adds a sample event if the
-  event table is empty. That sample creation also performs ingestion/network I/O.
-  Starting the UI is therefore not a read-only operation on a fresh database.
+- Startup does not initialize databases or create sample events. Apply migrations
+  and explicitly seed reference data before opening the application.
 - `create_all()` does not migrate existing tables. Schema changes require reviewed,
   version-controlled Alembic revisions. See
   [database migration notes](docs/database-migrations.md), but treat reset recipes
@@ -176,7 +180,11 @@ Do not assume ignored files are excluded from image or wheel builds.
   from the repository root with an explicit app target, for example
   `flask --app recall.app:server db migrate -m "description"` and
   `flask --app recall.app:server db upgrade`. Check the actual database and migration
-  history first: migration scaffolding exists, but no revisions are currently checked in.
+  history first: `0001_initial` is the legacy baseline, followed by interval constraints.
+  Existing unversioned installations must pass `verify-baseline` and operator review
+  before explicitly stamping `0001_initial`; never stamp `head` to bypass migrations.
+  Run `seed` explicitly for reference radars/tags, and `init-tiles` for a new Terracotta
+  database. See the migration guide for existing installations.
   The dev overlay mounts only `src`, so migrations generated inside a container must
   be copied back or generated using an explicit migration-directory mount.
 - Terracotta manages its own database format separately from Alembic. An upgrade can

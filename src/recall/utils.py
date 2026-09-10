@@ -3,6 +3,10 @@ from matplotlib.dates import ConciseDateFormatter, AutoDateLocator, date2num, MI
 
 def timestamp_marks(timestamps):
     """Format the timestamp labels using ConciseDateFormatter and AutoDateLocator."""
+    if not timestamps:
+        return {}
+    if len(timestamps) == 1:
+        return {0: timestamps[0].strftime("%H:%M")}
     locator = AutoDateLocator()
     locator.intervald[MINUTELY] = [5, 10, 15, 30]
     formatter = ConciseDateFormatter(locator)
@@ -14,5 +18,5 @@ def timestamp_marks(timestamps):
         if ts in ticks:
             marks[i] = formatted_ticks[ticks.tolist().index(ts)]
         else:
-            marks[i] = ''
+            marks[i] = ""
     return marks
