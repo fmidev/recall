@@ -1,7 +1,6 @@
 """Dash app for visualizing radar case studies."""
 
 import os
-import datetime
 
 from dash import Dash, Input, Output, State, CeleryManager, callback
 from dash.exceptions import PreventUpdate
@@ -14,6 +13,7 @@ from recall.database.queries import initial_db_setup, add_event, event_overlaps_
 from recall.database.connection import db
 from recall.layout import create_layout
 from recall.terracotta.ingest import insert_event
+from recall.domain import EventValidationError, validate_event_interval
 import recall.callbacks.events  # noqa: F401
 import recall.callbacks.tags  # noqa: F401
 import recall.callbacks.map  # noqa: F401
@@ -93,13 +93,11 @@ def submit_event(set_progress, n_clicks, start_time, end_time, description, rada
     with server.app_context():
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.fromisoformat(start_time)
-        end_time = datetime.datetime.fromisoformat(end_time)
         print(f"Adding event: {start_time} - {end_time} {description} {radar.name}")
         try:
             add_event(db, radar, start_time, end_time, description, tags, set_progress=set_progress)
-        except ValueError:
-            return 0, {'status': 'overlap'}
+        except EventValidationError as exc:
+            return 0, {'status': 'invalid', 'message': str(exc)}
     return 0, {'status': 'added'}
 
 
@@ -137,8 +135,10 @@ def update_event(set_progress, n_clicks, event_id: int, start_time, end_time, de
         event = db.session.query(Event).get(event_id)
         radar = db.session.query(Radar).get(radar_id)
         tags = db.session.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        start_time = datetime.datetime.fromisoformat(start_time)
-        end_time = datetime.datetime.fromisoformat(end_time)
+        try:
+            start_time, end_time = validate_event_interval(start_time, end_time)
+        except EventValidationError as exc:
+            return 0, {'status': 'invalid', 'message': str(exc)}
         event.radar = radar
         event.start_time = start_time
         event.end_time = end_time
@@ -146,7 +146,10 @@ def update_event(set_progress, n_clicks, event_id: int, start_time, end_time, de
         event.tags = tags
         if event_overlaps_existing(db, event):
             db.session.rollback()
-            return 0, {'status': 'overlap'}
+            return 0, {
+                'status': 'invalid',
+                'message': 'Event overlaps with an existing event for this radar.',
+            }
         db.session.commit()
         insert_event(event, set_progress=set_progress)
     return 0, {'status': 'updated'}

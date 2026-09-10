@@ -40,6 +40,17 @@ dependencies = [
   "tomli-w",
 ]
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "integration: requires a disposable PostGIS database",
+]
+
 [project.scripts]
 recall = "recall.app:main"
 

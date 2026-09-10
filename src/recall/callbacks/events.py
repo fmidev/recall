@@ -11,6 +11,26 @@ from recall.utils import timestamp_marks
 
 
 @callback(
+    Output('event-feedback', 'children'),
+    Output('event-feedback', 'color'),
+    Output('event-feedback', 'is_open'),
+    Input('events-update-signal', 'data'),
+)
+def event_feedback(signal):
+    if not signal:
+        return '', 'info', False
+    if signal.get('status') == 'invalid':
+        return signal['message'], 'danger', True
+    messages = {
+        'added': 'Event saved.',
+        'updated': 'Event updated.',
+        'deleted': 'Event deleted.',
+    }
+    message = messages.get(signal.get('status'), '')
+    return message, 'success', bool(message)
+
+
+@callback(
     Output('end-time', 'min'),
     Input('start-time', 'value'),
 )

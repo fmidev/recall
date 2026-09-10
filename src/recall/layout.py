@@ -72,6 +72,7 @@ def create_layout():
                 event_buttons,
             ]),
             dbc.Progress(id='event-form-progress', class_name='d-none'),
+            dbc.Alert(id='event-feedback', is_open=False, class_name='mt-3'),
         ]),
         class_name='mt-3'
     )
@@ -171,5 +172,4 @@ def create_layout():
             ])
         ])
     ], fluid=True)
-
 

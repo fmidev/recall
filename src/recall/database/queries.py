@@ -2,11 +2,10 @@
 
 import datetime
 
-from sqlalchemy import or_, and_
-
 from recall.database.connection import db
 from recall.terracotta.ingest import insert_event
 from recall.database.models import Event, Radar, Tag
+from recall.domain import EventValidationError, validate_event_interval
 
 
 def get_coords(db, radar):
@@ -17,15 +16,16 @@ def get_coords(db, radar):
 
 def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
     """Add an event to the database."""
+    start_time, end_time = validate_event_interval(start_time, end_time)
     event = Event(
         radar=radar,
-        tags=tags,
+        tags=tags or [],
         start_time=start_time,
         end_time=end_time,
         description=description
     )
     if event_overlaps_existing(db, event):
-        raise ValueError('Event overlaps with existing event')
+        raise EventValidationError('Event overlaps with an existing event for this radar.')
     insert_event(event, **kws)
     db.session.add(event)
     db.session.commit()
@@ -34,14 +34,15 @@ def add_event(db, radar, start_time, end_time, description, tags=None, **kws):
 
 def event_overlaps_existing(db, event):
     """Check if the event overlaps with any existing events."""
-    filter_radar = Event.radar == event.radar
-    filter_separate = Event.id != event.id
-    filter_overlap = or_(
-        and_(Event.start_time <= event.start_time, event.start_time <= Event.end_time),
-        and_(Event.start_time <= event.end_time, event.end_time <= Event.end_time)
+    query = db.select(Event.id).where(
+        Event.radar == event.radar,
+        Event.start_time < event.end_time,
+        Event.end_time > event.start_time,
     )
-    events = db.session.query(Event).filter(filter_radar, filter_separate, filter_overlap).all()
-    return len(events) > 0
+    if event.id is not None:
+        query = query.where(Event.id != event.id)
+    with db.session.no_autoflush:
+        return db.session.scalar(query.limit(1)) is not None
 
 
 def sample_events(db):

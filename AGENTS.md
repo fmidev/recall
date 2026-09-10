@@ -67,14 +67,11 @@ not a local archive of raw observations.
 - The UI labels times as **UTC**, while current Python/SQLAlchemy timestamps are
   timezone-naive. Do not apply local-time conversions implicitly. A move to aware
   timestamps needs coordinated input, storage, export, and archive-lookup changes.
-- `list_scan_timestamps` generates five-minute steps from the event start; for aligned
-  intervals the end is excluded. It synthesizes times rather than querying availability.
-  Reuse it across playback, ingestion, and downloads. Short or non-aligned intervals
-  need explicit handling; do not silently round or assume every scan exists.
-- Overlap validation is radar-specific and excludes the event being edited. The current
-  check treats touching endpoints as overlaps, but is not a complete interval-overlap
-  implementation. If changing validation, explicitly cover containment, boundaries,
-  reversed/empty intervals, and different radars rather than copying it as a specification.
+- Event intervals are UTC, five-minute-aligned, and half-open: start included, end
+  excluded. The end must be later than the start; adjacent events are allowed, overlaps
+  for the same radar are not. Reuse `validate_event_interval` and
+  `list_scan_timestamps`; never silently round. Scan times are expected timestamps,
+  not a guarantee that an archive file exists.
 - Radar locations are PostGIS geography points in EPSG:4326: database coordinates are
   longitude/latitude, Leaflet centers are latitude/longitude. Reuse `get_coords`.
 - Terracotta key order is `(timestamp, radar, product)`; timestamps use `YYYYMMDDHHMM`.
@@ -188,11 +185,12 @@ Do not assume ignored files are excluded from image or wheel builds.
 
 ## Validation and completion
 
-There is currently no checked-in test suite, CI workflow, or configured test runner.
+Pytest unit tests live in `tests`; install `.[test]` and run
+`python -m pytest -m 'not integration'`. There is not yet a CI workflow.
 [pyproject.toml](pyproject.toml) includes a Hatch mypy environment and coverage settings,
-but these are not evidence of a passing validation baseline. If Hatch is available,
+but these are not evidence of a passing type-checking baseline. If Hatch is available,
 `hatch run types:check src/recall` scopes the existing type command to actual sources
-(its default also names the nonexistent `tests` directory).
+(pass explicit paths for targeted checks).
 
 - Run the smallest relevant checks available. For behavior changes, add focused
   regression tests where feasible; if introducing the first test setup, keep it minimal

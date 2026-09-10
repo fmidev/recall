@@ -1,9 +1,10 @@
-import datetime
+from recall.domain import SCAN_INTERVAL, validate_event_interval
 
 
 def list_scan_timestamps(event):
-    """List all radar scan timestamps in an event."""
-    start_time = event.start_time
-    end_time = event.end_time
-    timestamps = [start_time + datetime.timedelta(minutes=5*i) for i in range(int((end_time - start_time).total_seconds() / 60 / 5))]
-    return timestamps
+    """List expected scans in the event's half-open, five-minute UTC interval."""
+    start_time, end_time = validate_event_interval(event.start_time, event.end_time)
+    return [
+        start_time + SCAN_INTERVAL * i
+        for i in range((end_time - start_time) // SCAN_INTERVAL)
+    ]
