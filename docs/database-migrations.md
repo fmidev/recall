@@ -27,6 +27,26 @@ network ingestion. A conflicting radar FMISID under a different name aborts the
 entire seed transaction for manual review. Regular application startup never
 invokes this command.
 
+## Restoring a TOML catalog into a fresh database
+
+Create the current schema with `db upgrade` and seed the radar definitions first.
+There is no legacy database to baseline when restoring an export into a new database.
+
+```sh
+flask --app recall.app:server import-events /path/to/events.toml --dry-run
+flask --app recall.app:server import-events /path/to/events.toml
+```
+
+The importer validates every record, radar identifier and interval before writing.
+It preserves exported event IDs, descriptions, times and named tag assignments,
+creates missing tags with empty descriptions, and preserves existing reference
+tag descriptions. Inserts are committed in one transaction. An exact repeat is
+a no-op; a nonempty differing catalog is rejected rather than merged or overwritten.
+The export does not contain tag descriptions/hierarchy or raster metadata.
+
+Import never starts imagery jobs. Verify the restored catalog and back it up before
+using **Ingest all**, so ingestion can run against a finalized worker deployment.
+
 ## Existing databases created with `create_all()`
 
 Do **not** upgrade blindly: revision `0001_initial` creates the legacy tables and

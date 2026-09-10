@@ -52,7 +52,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: recall:latest
-    command: celery -A recall.app.celery_app worker --loglevel=info
+    command: celery -A recall.app.celery_app worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
     environment:
       PYTHONUNBUFFERED: 1
       CELERY_BROKER_URL: redis://redis:6379/0

@@ -11,6 +11,8 @@ Python 3.12 or newer is required. Container builds use Python 3.12 and locked
 dependencies; the web/worker and tile server use the same Terracotta version.
 Compose waits for PostgreSQL and Redis health checks. This checks service readiness,
 not application migration state; the explicit database setup below is still required.
+The worker defaults to two processes to avoid spawning one raster-processing
+process per laptop CPU; override `CELERY_CONCURRENCY` when needed.
 
 ### In production
 
@@ -52,6 +54,12 @@ Existing installations need the safe baseline procedure in
 [Database lifecycle and migrations](docs/database-migrations.md) **before upgrading**.
 Do not reset an existing catalog. The same guide describes disposable integration
 tests and separate Terracotta version handling.
+
+To restore an existing TOML export into a fresh event database, run
+`flask --app recall.app:server import-events /path/to/events.toml --dry-run`
+and then repeat without `--dry-run`. The command preserves exported IDs and tag
+assignments, refuses to overwrite a differing catalog, and performs no raster I/O.
+See the migration guide for details; start **Ingest all** only after verification.
 
 ## Event times
 

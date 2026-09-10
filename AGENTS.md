@@ -56,6 +56,7 @@ not a local archive of raw observations.
 | [src/recall/domain.py](src/recall/domain.py), [src/recall/selection.py](src/recall/selection.py) | Interval validation and saved scan identity shared by the UI |
 | [src/recall/tasks.py](src/recall/tasks.py) | Independent Celery imagery jobs; no browser supersession/cancellation |
 | [src/recall/database/cli.py](src/recall/database/cli.py) | Explicit seed and read-only legacy baseline verification |
+| [src/recall/database/catalog.py](src/recall/database/catalog.py) | Validated, transactional restoration of TOML catalog exports |
 | [src/recall/terracotta/](src/recall/terracotta/) | S3 path construction, metadata ingestion, tile URLs |
 | [src/recall/utils.py](src/recall/utils.py), [src/recall/visuals.py](src/recall/visuals.py) | Timeline labels and display colormap helpers |
 | [terracotta/](terracotta/) | Separate tile-server image, dependencies, generated colormaps |
@@ -190,6 +191,9 @@ Do not assume ignored files are excluded from image or wheel builds.
   before explicitly stamping `0001_initial`; never stamp `head` to bypass migrations.
   Run `seed` explicitly for reference radars/tags, and `init-tiles` for a new Terracotta
   database. See the migration guide for existing installations.
+  `import-events PATH --dry-run` validates a recovered TOML export against the target;
+  omit `--dry-run` to restore into an empty event catalog. It preserves IDs, treats
+  exact repeats as no-ops, refuses conflicting catalogs, and never starts ingestion.
   The dev overlay mounts only `src`, so migrations generated inside a container must
   be copied back or generated using an explicit migration-directory mount.
 - Terracotta manages its own database format separately from Alembic. An upgrade can

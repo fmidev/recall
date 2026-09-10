@@ -1,5 +1,8 @@
 """Explicit, local-only database administration commands."""
 
+import logging
+import tomllib
+
 import click
 from flask.cli import with_appcontext
 from sqlalchemy import inspect, text
@@ -8,6 +11,8 @@ from sqlalchemy.exc import IntegrityError
 
 from recall.database.connection import db
 from recall.database.models import Radar, Tag
+from recall.database.catalog import parse_catalog, restore_catalog
+from recall.domain import EventValidationError
 
 
 RADARS = (
@@ -234,7 +239,42 @@ def verify_baseline():
     )
 
 
+@click.command("import-events")
+@click.argument("catalog", type=click.File("rb"))
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Validate the export and target database without writing.",
+)
+@with_appcontext
+def import_events(catalog, dry_run):
+    """Restore event IDs, times, descriptions and named tags from a TOML export."""
+    try:
+        records = parse_catalog(tomllib.load(catalog))
+        result = restore_catalog(records, dry_run=dry_run)
+    except (tomllib.TOMLDecodeError, EventValidationError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    except IntegrityError as exc:
+        logging.getLogger(__name__).exception(
+            "Catalog import violated a database constraint"
+        )
+        raise click.ClickException(
+            "Import failed a database constraint; no records were committed."
+        ) from exc
+    if result.already_present:
+        click.echo(
+            f"Catalog already matches all {result.events} events; no changes made."
+        )
+    else:
+        action = "Would import" if dry_run else "Imported"
+        click.echo(
+            f"{action} {result.events} events and {result.new_tags} new tags "
+            f"({result.scans} expected scans). Event IDs preserved. No imagery jobs started."
+        )
+
+
 def register_commands(server):
     """Register database maintenance commands on the Flask server."""
     server.cli.add_command(seed)
     server.cli.add_command(verify_baseline)
+    server.cli.add_command(import_events)
