@@ -39,7 +39,7 @@ def clean_test_tables():
             )
         connection.execute(
             text(
-                'DROP TABLE IF EXISTS public.event_tag, public.tag_tag, public."event", '
+                'DROP TABLE IF EXISTS public.ingestion_job, public.event_tag, public.tag_tag, public."event", '
                 "public.tag, public.radar, public.alembic_version CASCADE"
             )
         )

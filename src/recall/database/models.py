@@ -1,8 +1,17 @@
 from typing import List, Optional
 import datetime
 
-from sqlalchemy import CheckConstraint, Column, String, Text, ForeignKey, column, func
-from sqlalchemy.dialects.postgresql import ExcludeConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    String,
+    Text,
+    ForeignKey,
+    column,
+    func,
+)
+from sqlalchemy.dialects.postgresql import ExcludeConstraint, JSONB
 from sqlalchemy.orm import mapped_column, Mapped
 from geoalchemy2 import Geography
 
@@ -85,4 +94,39 @@ class Tag(db.Model):
         primaryjoin=id == tag_tag_m2m.c.parent_tag_id,
         secondaryjoin=id == tag_tag_m2m.c.child_tag_id,
         back_populates="parent_tags",
+    )
+
+
+class IngestionJob(db.Model):
+    """Immutable event snapshots deliberately have no catalog foreign keys."""
+
+    __tablename__ = "ingestion_job"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'ready', 'partial', 'failed')",
+            name="ingestion_job_status",
+        ),
+        CheckConstraint(
+            "completed >= 0 AND total >= completed",
+            name="ingestion_job_progress",
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    snapshots: Mapped[list] = mapped_column(JSONB, nullable=False)
+    results: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    completed: Mapped[int] = mapped_column(nullable=False, default=0)
+    total: Mapped[int] = mapped_column(nullable=False)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    started_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    finished_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True)
     )

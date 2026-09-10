@@ -80,9 +80,10 @@ event, and **Ingest all** prepares the entire catalog. Preparation reports avail
 missing, and failed scans separately. If a page is closed before its background
 request is submitted, retry preparation when returning; the catalog save is preserved.
 Once queued, jobs run independently in Celery: preparing another event does not
-cancel earlier work. Preparation feedback describes the latest completed job;
-retry results do not accumulate obsolete failures. Results are session UI feedback,
-not a durable job history.
+cancel earlier work. Job snapshots, progress, outcomes and errors are retained in
+PostgreSQL and visible in Maintenance across browser reloads. Retry results do not
+accumulate obsolete failures. See [durable imagery preparation](docs/ingestion-jobs.md)
+for interrupted-worker handling and safe deployment of the new task protocol.
 
 ## Development checks
 

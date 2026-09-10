@@ -1,11 +1,17 @@
-"""Submit independent imagery jobs and poll their explicit results."""
+"""Submit independent jobs; PostgreSQL is the shared source of history and progress."""
 
+import hashlib
+import json
 import logging
-from uuid import uuid4
 
-from dash import Input, Output, State, Patch, callback, ctx, no_update
+from dash import Input, Output, State, Patch, callback, ctx, html, no_update
 from dash.exceptions import PreventUpdate
-from kombu.exceptions import OperationalError
+import dash_bootstrap_components as dbc
+from kombu.exceptions import EncodeError, OperationalError
+from sqlalchemy.exc import SQLAlchemyError
+
+from recall.database import jobs as job_store
+from recall.domain import EventValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -13,19 +19,20 @@ logger = logging.getLogger(__name__)
 
 def polling_error(error):
     logger.error(
-        "Cannot read imagery job status",
+        "Cannot read imagery job history",
         exc_info=(type(error), error, error.__traceback__),
     )
     previous = ctx.states.get("ingestion-result.data") or {}
+    message = (
+        "Cannot read durable imagery history. Retrying status checks automatically; "
+        "check the catalog database. No jobs have been requeued."
+    )
     return (
-        {
-            **previous,
-            "status": "failed",
-            "message": "Cannot read worker status. Retrying automatically; check Redis/worker logs.",
-        },
+        {**previous, "status": "failed", "message": message},
         0,
         1,
         "Status unavailable",
+        html.P(message, className="text-danger"),
     )
 
 
@@ -63,18 +70,43 @@ def enqueue_imagery(request, retry_clicks, all_clicks, selected_id, jobs, previo
     else:
         event_ids = None
     try:
-        task = celery_app.tasks["recall.prepare_imagery"].apply_async(
-            args=(event_ids,), retry=False
-        )
-    except OperationalError:
-        logger.exception("Could not enqueue imagery preparation")
+        job = job_store.create_job(event_ids)
+    except (EventValidationError, SQLAlchemyError) as exc:
+        logger.exception("Could not persist imagery job")
         return no_update, {
             **(previous or {}),
             "status": "failed",
-            "message": "Could not queue imagery preparation. The catalog is saved; retry when the worker/broker is available.",
+            "message": (
+                str(exc)
+                if isinstance(exc, EventValidationError)
+                else "Could not save imagery job history. Nothing was queued; check the catalog database."
+            ),
+        }
+    try:
+        celery_app.tasks["recall.prepare_imagery"].apply_async(
+            args=(job["id"],), task_id=job["id"], retry=False
+        )
+    except (OperationalError, EncodeError, OSError) as exc:
+        logger.exception("Could not enqueue imagery preparation %s", job["id"])
+        message = (
+            f"{type(exc).__name__}: could not confirm queue submission. "
+            "The saved catalog is unchanged. Check the broker/worker, then retry explicitly."
+        )
+        try:
+            job_store.fail_job(job["id"], message, expected_status="queued")
+        except SQLAlchemyError:
+            logger.exception("Could not record queue failure for %s", job["id"])
+            message += (
+                " Failure could not be recorded; the durable job may still show queued."
+            )
+        return no_update, {
+            **(previous or {}),
+            "status": "failed",
+            "job_id": job["id"],
+            "message": message,
         }
     update = Patch()
-    update.append(task.id)
+    update.append(job["id"])
     return update, no_update
 
 
@@ -85,9 +117,134 @@ def enqueue_imagery(request, retry_clicks, all_clicks, selected_id, jobs, previo
     Input("ingestion-result", "data"),
 )
 def polling_state(jobs, result):
-    completed = set((result or {}).get("completed_jobs", []))
-    pending = set(jobs or []) - completed
-    return not bool(pending), "my-3" if pending else "d-none"
+    # Keep checking even when idle: another browser can submit independent work.
+    return False, "my-3" if (result or {}).get("active_jobs") else "d-none"
+
+
+def job_summary(job):
+    available = sum(r["inserted"] + r["existing"] for r in job["results"])
+    missing = sum(r["missing"] for r in job["results"])
+    failed = sum(r["failed"] for r in job["results"])
+    return f"{available} scans available, {missing} missing, {failed} failed"
+
+
+def history_view(jobs):
+    if not jobs:
+        return html.P("No imagery preparation jobs yet.")
+    return [
+        html.P(
+            "Shared history: latest 20 finished jobs and all queued/running jobs. "
+            "Times include their UTC offset. A stopped worker may leave a job running; "
+            "last update is not proof of liveness. Nothing is retried automatically. "
+            "Check the worker before using Prepare imagery or Ingest all to create "
+            "a new job; the old record is retained."
+        ),
+        dbc.Accordion(
+            [
+                dbc.AccordionItem(
+                    [
+                        html.P(
+                            f"Last update: {job['updated_at']}; "
+                            f"started: {job['started_at'] or 'not started'}; "
+                            f"finished: {job['finished_at'] or 'not finished'}."
+                        ),
+                        html.P(job_summary(job)),
+                        html.P(job["error"], className="text-danger")
+                        if job["error"]
+                        else None,
+                        html.Ul(
+                            [
+                                html.Li(
+                                    f"Event {snapshot['event_id']} · {snapshot['radar']} · "
+                                    f"{snapshot['start_time']} – {snapshot['end_time']} UTC · "
+                                    f"{snapshot['description'] or ''}"
+                                )
+                                for snapshot in job["snapshots"]
+                            ]
+                        ),
+                        html.Ul(
+                            [
+                                html.Li(
+                                    [
+                                        f"Event {result['event_id']}: "
+                                        f"{result['inserted']} inserted, {result['existing']} existing, "
+                                        f"{result['missing']} missing, {result['failed']} failed.",
+                                        html.Ul(
+                                            [
+                                                html.Li(issue)
+                                                for issue in result.get("issues", [])
+                                            ]
+                                        ),
+                                    ]
+                                )
+                                for result in job["results"]
+                            ]
+                        ),
+                    ],
+                    title=(
+                        f"{job['created_at']} · {job['status']} · "
+                        f"{job['completed']}/{job['total']} scans · job {job['id']}"
+                    ),
+                    item_id=job["id"],
+                )
+                for job in jobs
+            ],
+            id="ingestion-history-accordion",
+            always_open=True,
+            active_item=[],
+            persistence=True,
+            persisted_props=["active_item"],
+            persistence_type="memory",
+        ),
+    ]
+
+
+def summarize_jobs(jobs):
+    active = [job for job in jobs if job["status"] in job_store.ACTIVE]
+    latest = jobs[0] if jobs else None
+    # The newest attempt with a completed outcome wins for each event; a retry
+    # never inherits missing/failed counters from its previous attempt.
+    outcomes = {}
+    revisions = {}
+    for job in jobs:
+        for result in job["results"]:
+            event_id = result["event_id"]
+            if event_id not in outcomes:
+                outcomes[event_id] = result
+                revisions[event_id] = (job["id"], result)
+    revision = hashlib.sha256(
+        json.dumps(revisions, sort_keys=True).encode()
+    ).hexdigest()[:20]
+    result = {
+        "status": latest["status"] if latest else "idle",
+        "message": (
+            f"Latest preparation: {latest['status']}; {job_summary(latest)}. "
+            f"{latest['error'] or ''} {len(active)} jobs queued/running. "
+            "Saved catalog data is unchanged."
+            if latest
+            else "No imagery preparation jobs yet."
+        ),
+        "events": list(outcomes.values()),
+        "completed_jobs": [
+            job["id"] for job in jobs if job["status"] in job_store.TERMINAL
+        ],
+        "active_jobs": [job["id"] for job in active],
+        "job_id": latest["id"] if latest else None,
+        "revision": revision,
+        "history_revision": hashlib.sha256(
+            json.dumps(jobs, sort_keys=True).encode()
+        ).hexdigest()[:20],
+    }
+    completed = sum(job["completed"] for job in active)
+    total = sum(job["total"] for job in active)
+    progress = (
+        completed,
+        max(total, 1),
+        f"{completed}/{total} · {len(active)} active jobs"
+        if active
+        else "No active jobs",
+    )
+    return result, progress
 
 
 @callback(
@@ -95,78 +252,23 @@ def polling_state(jobs, result):
     Output("ingestion-progress", "value"),
     Output("ingestion-progress", "max"),
     Output("ingestion-progress", "label"),
+    Output("ingestion-history", "children"),
     Input("ingestion-poll", "n_intervals"),
     State("ingestion-jobs", "data"),
     State("ingestion-result", "data"),
     on_error=polling_error,
-    prevent_initial_call=True,
 )
 def poll_imagery(_, jobs, previous):
-    from recall.app import celery_app
-
-    previous = previous or {}
-    completed = list(previous.get("completed_jobs", []))
-    latest = None
-    pending = 0
-    progress = (0, 1, "Queued; waiting for worker")
-    changed = False
-    for job_id in jobs or []:
-        if job_id in completed:
-            continue
-        task = celery_app.AsyncResult(job_id)
-        state = task.state
-        if state == "SUCCESS":
-            latest = {
-                "job_id": job_id,
-                "events": task.result["events"],
-                "failed": False,
-            }
-            completed.append(job_id)
-            changed = True
-        elif state in ("FAILURE", "REVOKED"):
-            logger.error(
-                "Imagery job %s ended with state %s; see worker logs", job_id, state
-            )
-            latest = {"job_id": job_id, "events": [], "failed": True}
-            completed.append(job_id)
-            changed = True
-        else:
-            pending += 1
-            if state == "PROGRESS":
-                info = task.info
-                progress = (
-                    info["completed"],
-                    info["total"],
-                    f"{info['completed']}/{info['total']}",
-                )
-    if not changed:
-        return no_update, *progress
-    events = latest["events"]
-    missing = sum(event["missing"] for event in events)
-    failed = sum(event["failed"] for event in events)
-    available = sum(event["inserted"] + event["existing"] for event in events)
-    result = {
-        "status": (
-            "failed"
-            if latest["failed"]
-            else "partial"
-            if missing or failed
-            else "ready"
-        ),
-        "message": (
-            "Latest completed imagery job failed; check worker logs and retry. "
-            "Saved catalog data is unchanged."
-            if latest["failed"]
-            else f"Latest completed preparation (events {', '.join(str(e['event_id']) for e in events)}): "
-            f"{available} scans available, {missing} missing, {failed} failed. "
-            f"{pending} jobs pending. Saved catalog data is unchanged."
-        ),
-        "events": events,
-        "completed_jobs": completed,
-        "job_id": latest["job_id"],
-        "revision": str(uuid4()),
-    }
-    return result, *progress
+    history = job_store.list_jobs()
+    result, progress = summarize_jobs(history)
+    unchanged_history = previous is not None and result[
+        "history_revision"
+    ] == previous.get("history_revision")
+    return (
+        no_update if result == previous else result,
+        *progress,
+        no_update if unchanged_history else history_view(history),
+    )
 
 
 @callback(
@@ -177,15 +279,7 @@ def poll_imagery(_, jobs, previous):
     Input("ingestion-jobs", "data"),
 )
 def show_ingestion_result(result, jobs):
-    if result and result["status"] == "failed":
-        return result["message"], "danger", True
-    if jobs and not set(jobs).issubset(set((result or {}).get("completed_jobs", []))):
-        return (
-            "Imagery jobs queued or running. Catalog saves remain available.",
-            "info",
-            True,
-        )
-    if not result:
+    if not result or result["status"] == "idle":
         return "", "info", False
     colors = {"ready": "success", "partial": "warning", "failed": "danger"}
-    return result["message"], colors[result["status"]], True
+    return result["message"], colors.get(result["status"], "info"), True

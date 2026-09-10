@@ -8,7 +8,7 @@ from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from recall.database.connection import db
-from recall.database.models import Event, Radar, Tag
+from recall.database.models import Event, IngestionJob, Radar, Tag
 
 from conftest import MIGRATIONS, require_test_database
 
@@ -41,9 +41,9 @@ def test_fixture_refuses_unsafe_database(uri):
 def test_migrate_blank_database_without_implicit_seed(migrated_db):
     assert (
         db.session.scalar(text("SELECT version_num FROM alembic_version"))
-        == "0002_event_intervals"
+        == "0003_ingestion_jobs"
     )
-    for model in (Event, Radar, Tag):
+    for model in (Event, IngestionJob, Radar, Tag):
         assert db.session.scalar(db.select(func.count()).select_from(model)) == 0
     checks = inspect(db.engine).get_check_constraints("event")
     assert {check["name"] for check in checks} == {
@@ -109,7 +109,7 @@ def test_unversioned_baseline_requires_verification_and_manual_stamp(db_app):
     upgrade(directory=MIGRATIONS)
     assert (
         db.session.scalar(text("SELECT version_num FROM alembic_version"))
-        == "0002_event_intervals"
+        == "0003_ingestion_jobs"
     )
 
 
@@ -148,7 +148,7 @@ def test_create_all_has_no_implicit_seed_hooks(db_app):
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
     db.create_all()
-    for model in (Event, Radar, Tag):
+    for model in (Event, IngestionJob, Radar, Tag):
         assert db.session.scalar(db.select(func.count()).select_from(model)) == 0
     assert not db.session.new
 

@@ -279,6 +279,13 @@ def create_layout():
                 ),
                 class_name="mt-3",
             ),
+            dbc.Card(
+                [
+                    dbc.CardHeader("Imagery preparation history"),
+                    dbc.CardBody(html.Div(id="ingestion-history")),
+                ],
+                class_name="mt-3",
+            ),
         ]
     )
     tabs = dbc.Tabs(
@@ -302,7 +309,7 @@ def create_layout():
             dcc.Store(id="selected-event"),
             dcc.Store(id="scan-availability"),
             dcc.Store(id="ingestion-jobs", data=[]),
-            dcc.Interval(id="ingestion-poll", interval=1000, disabled=True),
+            dcc.Interval(id="ingestion-poll", interval=3000, disabled=False),
             dbc.Row(
                 [
                     dbc.Col([tabs], lg=4),

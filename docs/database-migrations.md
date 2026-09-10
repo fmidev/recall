@@ -79,7 +79,7 @@ that would claim interval constraints exist without installing them.
    flask --app recall.app:server seed
    ```
 
-4. Verify `db current` reports `0002_event_intervals`, then restart writers.
+4. Verify `db current` reports `0003_ingestion_jobs`, then restart writers.
 
 The second revision locks the event table for its audit and constraint installation.
 It reports invalid event IDs and overlapping ID pairs and aborts without modifying
@@ -87,6 +87,10 @@ curated records. Fix only explicitly reviewed data, retaining a backup/audit tra
 then rerun `db upgrade`. It does not round timestamps, delete events, or resolve
 overlaps automatically. This migration requires an online database connection;
 offline `db upgrade --sql` is intentionally unsupported.
+
+Revision `0003_ingestion_jobs` adds a separate durable preparation-history table,
+without changing curated event/tag rows. Drain old-format Celery tasks before
+updating both worker and web code; see [imagery jobs](ingestion-jobs.md).
 
 ## Interval contract
 

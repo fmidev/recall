@@ -55,6 +55,7 @@ not a local archive of raw observations.
 | [src/recall/database/__init__.py](src/recall/database/__init__.py) | Shared scan timestamp generation |
 | [src/recall/domain.py](src/recall/domain.py), [src/recall/selection.py](src/recall/selection.py) | Interval validation and saved scan identity shared by the UI |
 | [src/recall/tasks.py](src/recall/tasks.py) | Independent Celery imagery jobs; no browser supersession/cancellation |
+| [src/recall/database/jobs.py](src/recall/database/jobs.py) | Durable job snapshots, atomic claims, progress and outcomes |
 | [src/recall/database/cli.py](src/recall/database/cli.py) | Explicit seed and read-only legacy baseline verification |
 | [src/recall/database/catalog.py](src/recall/database/catalog.py) | Validated, transactional restoration of TOML catalog exports |
 | [src/recall/terracotta/](src/recall/terracotta/) | S3 path construction, metadata ingestion, tile URLs |
@@ -109,6 +110,9 @@ not a local archive of raw observations.
   enqueued/polled by `callbacks/ingestion.py`, not superseding Dash background callbacks.
   Worker database access needs a Flask application context.
   Do not pass live ORM sessions between processes or store user state in module globals.
+- Job history is stored in PostgreSQL, not browser state or Redis result retention.
+  See [durable job lifecycle](docs/ingestion-jobs.md). Do not automatically requeue
+  stale records or infer successful completion from a worker disappearing.
 - Reuse [database/connection.py](src/recall/database/connection.py)'s shared `db`.
   Make transaction boundaries explicit; account for partial failures across the event
   database and Terracotta, since they do not share an atomic transaction.
@@ -196,6 +200,8 @@ Do not assume ignored files are excluded from image or wheel builds.
   before explicitly stamping `0001_initial`; never stamp `head` to bypass migrations.
   Run `seed` explicitly for reference radars/tags, and `init-tiles` for a new Terracotta
   database. See the migration guide for existing installations.
+  `0003_ingestion_jobs` adds durable history without altering catalog events.
+  Drain legacy task arguments before updating web and worker to that task protocol.
   `import-events PATH --dry-run` validates a recovered TOML export against the target;
   omit `--dry-run` to restore into an empty event catalog. It preserves IDs, treats
   exact repeats as no-ops, refuses conflicting catalogs, and never starts ingestion.
