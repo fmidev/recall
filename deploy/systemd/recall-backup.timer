@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily RECALL catalog backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=recall-backup.service
+
+[Install]
+WantedBy=timers.target

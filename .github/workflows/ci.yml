@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: true
       - run: uv sync --locked --extra test --extra dev
-      - run: uv run --locked ruff check src tests migrations
+      - run: uv run --locked ruff check src tests migrations scripts
       - run: uv run --locked pytest -m "not integration"
       - name: Check tile dependency export
         run: |

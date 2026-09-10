@@ -177,6 +177,10 @@ Do not assume ignored files are excluded from image or wheel builds.
   databases, or run bulk writes against a shared deployment without explicit approval.
   Use disposable data for verification. Compose credentials are development defaults,
   not a production security configuration.
+- `scripts/backup_catalog.py` creates validated event-database archives; see
+  [backup operations](docs/backups.md). Retention applies only to tool-owned files
+  in a dedicated automatic-backup directory. Never prune manual recovery dumps.
+  User systemd timer templates are opt-in and must not start the database implicitly.
 - Startup does not initialize databases or create sample events. Apply migrations
   and explicitly seed reference data before opening the application.
 - `create_all()` does not migrate existing tables. Schema changes require reviewed,
@@ -205,7 +209,7 @@ Do not assume ignored files are excluded from image or wheel builds.
 
 Run `uv sync --locked --python 3.12 --extra test --extra dev`, then
 `uv run --locked pytest -m 'not integration'` and
-`uv run --locked ruff check src tests migrations`. CI also runs disposable
+`uv run --locked ruff check src tests migrations scripts`. CI also runs disposable
 PostGIS integration tests, distribution builds, and tile lock-export checks.
 [pyproject.toml](pyproject.toml) includes a Hatch mypy environment and coverage settings,
 but these are not evidence of a passing type-checking baseline. If Hatch is available,

@@ -1,0 +1,10 @@
+[Unit]
+Description=Validated RECALL catalog backup (database must already be running)
+
+[Service]
+Type=oneshot
+UMask=0077
+# Template only: replace every @...@ placeholder when installing, or override ExecStart.
+ExecStart="@PYTHON@" "@BACKUP_SCRIPT@" --podman "@PODMAN@" --container "@DB_CONTAINER@" --directory "@BACKUP_DIRECTORY@" --retain 30
+StandardOutput=journal
+StandardError=journal

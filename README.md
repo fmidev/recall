@@ -91,7 +91,7 @@ Use [uv](https://docs.astral.sh/uv/) to reproduce the committed dependency resol
 ```sh
 uv sync --locked --python 3.12 --extra test --extra dev
 uv run --locked pytest -m 'not integration'
-uv run --locked ruff check src tests migrations
+uv run --locked ruff check src tests migrations scripts
 ```
 
 Unit tests do not need the running stack or network access.
@@ -127,3 +127,11 @@ runtime for commercial basemaps; it takes precedence over the legacy local
 `src/recall/secrets.py` development fallback. Do not bake credentials into application
 artifacts. The WMS key is necessarily sent to the browser for direct tile requests;
 use a key intended for that deployment.
+
+## Backups
+
+Use [the backup command and optional daily user timer](docs/backups.md) to create
+validated, private PostgreSQL archives with checksums and bounded retention.
+Automatic backups use their own directory and never prune manual recovery dumps.
+The timer is an explicit installation step, not enabled by starting the app.
+Local backups still need an independently protected/off-laptop copy.
