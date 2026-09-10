@@ -122,9 +122,12 @@ def test_deleted_last_event_clears_dropdown(monkeypatch):
     session = Mock()
     session.scalars.return_value.all.return_value = []
     monkeypatch.setattr(events.db, "session", session)
-    assert events.populate_event_dropdown({"status": "deleted"}, True, {}, 1) == (
+    assert events.populate_event_dropdown(
+        {"status": "deleted"}, True, {}, [], "all", 1
+    ) == (
         [],
         None,
+        "No events in the catalog.",
     )
 
 
@@ -132,7 +135,10 @@ def test_invalid_save_does_not_reset_selection(monkeypatch):
     monkeypatch.setattr(
         events, "ctx", SimpleNamespace(triggered_id="events-update-signal")
     )
-    assert events.populate_event_dropdown({"status": "invalid"}, True, {}, 1) == (
+    assert events.populate_event_dropdown(
+        {"status": "invalid"}, True, {}, [], "all", 1
+    ) == (
+        no_update,
         no_update,
         no_update,
     )

@@ -3,7 +3,12 @@
 Simple web application to browse precipitation events and related weather radar data.
 
 The events are tagged for interesting features, such as hail, birds, or heavy attenuation.
-Events can be filtered by tags (not yet implemented). A radar animation is shown for each event.
+Events can be filtered by tags. A radar animation is shown for each event.
+
+The browsing filter defaults to **all selected tags** (AND); choose **any selected
+tag** for OR matching. Clearing the filter shows all events, including untagged
+ones. Filtering never changes event annotations. Selections that no longer match
+are cleared; saved events outside the active filter remain in the catalog.
 
 ## Deployment
 

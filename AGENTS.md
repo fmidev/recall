@@ -67,7 +67,8 @@ not a local archive of raw observations.
 - An event belongs to one radar and has a start/end time, description, and many-to-many
   tags. Radar names such as `fikor` are identifiers used in archive paths, not UI-only
   labels. Tags have unique names; parent/child relationships exist in the model but
-  are not exposed by the current tag editor. Event filtering by tags is not implemented.
+  are not exposed by the current tag editor. Browsing supports all/any tag matching,
+  defaulting to all; the browsing filter is separate from the event's assigned tags.
 - The UI labels times as **UTC**, while current Python/SQLAlchemy timestamps are
   timezone-naive. Do not apply local-time conversions implicitly. A move to aware
   timestamps needs coordinated input, storage, export, and archive-lookup changes.

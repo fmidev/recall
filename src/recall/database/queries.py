@@ -1,6 +1,7 @@
 """Methods for interacting with the database."""
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, selectinload
 
 from recall.database.connection import db
 from recall.database.models import Event, Radar, Tag
@@ -104,3 +105,21 @@ def events_list():
         }
         event_list.append(e)
     return event_list
+
+
+def browse_events(tag_ids=None, match="all"):
+    """Select events matching all/any named tag IDs, without changing annotations."""
+    if match not in ("all", "any"):
+        raise EventValidationError("Tag matching must be 'all' or 'any'.")
+    query = (
+        db.select(Event)
+        .options(selectinload(Event.tags), joinedload(Event.radar))
+        .order_by(Event.start_time, Event.id)
+    )
+    ids = set(tag_ids or [])
+    if ids:
+        if match == "all":
+            query = query.where(*(Event.tags.any(Tag.id == tag_id) for tag_id in ids))
+        else:
+            query = query.where(Event.tags.any(Tag.id.in_(ids)))
+    return db.session.scalars(query).all()

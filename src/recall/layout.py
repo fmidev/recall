@@ -140,6 +140,29 @@ def create_layout():
             dbc.Card(
                 dbc.CardBody(
                     [
+                        dbc.Label("Filter events by tags", html_for="tag-filter"),
+                        dcc.Dropdown(
+                            id="tag-filter",
+                            multi=True,
+                            value=[],
+                            placeholder="All events (no tag filter)",
+                            className="mb-2",
+                        ),
+                        dbc.RadioItems(
+                            id="tag-match",
+                            value="all",
+                            inline=True,
+                            options=[
+                                {"label": "All selected tags", "value": "all"},
+                                {"label": "Any selected tag", "value": "any"},
+                            ],
+                            class_name="mb-2",
+                        ),
+                        html.Div(
+                            id="filter-feedback",
+                            className="small text-muted mb-2",
+                            role="status",
+                        ),
                         dcc.Dropdown(
                             id="event-dropdown",
                             placeholder="Select event...",

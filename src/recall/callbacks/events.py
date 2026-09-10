@@ -10,7 +10,7 @@ from recall.aios import PlaybackSliderAIO
 from recall.database.connection import db
 from recall.database.models import Event, Radar, Tag
 from recall.utils import timestamp_marks
-from recall.database.queries import save_event
+from recall.database.queries import browse_events, save_event
 from recall.domain import EventValidationError
 from recall.database.queries import get_coords
 from recall.selection import event_snapshot, selected_scan
@@ -134,19 +134,20 @@ def disable_add_event_button(start_time, end_time, radar_id: int):
 @callback(
     Output("event-dropdown", "options"),
     Output("event-dropdown", "value"),
+    Output("filter-feedback", "children"),
     Input("events-update-signal", "data"),
     Input("startup-interval", "disabled"),
     Input("tag-update-signal", "data"),
+    Input("tag-filter", "value"),
+    Input("tag-match", "value"),
     State("event-dropdown", "value"),
 )
-def populate_event_dropdown(signal, _, __, selected_id):
+def populate_event_dropdown(signal, _, __, tag_ids, match, selected_id):
     """Populate the event dropdown with events from the database."""
     if ctx.triggered_id == "events-update-signal" and signal:
         if signal.get("status") == "invalid":
-            return no_update, no_update
-    events = db.session.scalars(
-        db.select(Event).order_by(Event.start_time, Event.id)
-    ).all()
+            return no_update, no_update, no_update
+    events = browse_events(tag_ids, match)
     # Label is the event start date and radar name
     options = []
     for event in events:
@@ -159,7 +160,38 @@ def populate_event_dropdown(signal, _, __, selected_id):
     if ctx.triggered_id == "events-update-signal" and signal:
         if signal.get("status") == "added":
             selected_id = signal["id"]
-    return options, selected_id if selected_id in ids else None
+    message = f"{len(events)} matching events."
+    if not events:
+        message = (
+            "No events match these tags. Clear the filter to see the full catalog."
+            if tag_ids
+            else "No events in the catalog."
+        )
+    if (
+        ctx.triggered_id == "events-update-signal"
+        and signal
+        and signal.get("status") in ("added", "updated")
+        and tag_ids
+    ):
+        if signal.get("id") not in ids:
+            message += " The saved event is outside this filter."
+    return options, selected_id if selected_id in ids else None, message
+
+
+@callback(
+    Output("tag-filter", "options"),
+    Output("tag-filter", "value"),
+    Input("startup-interval", "disabled"),
+    Input("tag-update-signal", "data"),
+    State("tag-filter", "value"),
+)
+def populate_tag_filter(_, __, selected):
+    tags = db.session.scalars(db.select(Tag).order_by(Tag.name)).all()
+    ids = {tag.id for tag in tags}
+    return (
+        [{"label": tag.name, "value": tag.id} for tag in tags],
+        [tag_id for tag_id in selected or [] if tag_id in ids],
+    )
 
 
 @callback(Output("radar-picker", "options"), Input("startup-interval", "disabled"))
