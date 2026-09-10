@@ -124,6 +124,19 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv-*
+.scratch-*
+.ruff_cache/
+.uv-cache/
+.env.*
+**/.env
+**/.env.*
+**/secrets.py
+**/*.pem
+**/*.key
+# Keep Git history for hatch-vcs, but not files being written by concurrent Git operations.
+.git/**/tmp_*
+.git/**/*.lock
 env/
 venv/
 ENV/

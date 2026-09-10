@@ -1,18 +1,21 @@
+import os
+
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_leaflet as dl
 
 from recall.aios import PlaybackSliderAIO
 
-try:
-    from recall.secrets import FMI_COMMERCIAL_API_KEY
+FMI_COMMERCIAL_API_KEY = os.environ.get("FMI_COMMERCIAL_API_KEY")
+if not FMI_COMMERCIAL_API_KEY:
+    try:
+        from recall.secrets import FMI_COMMERCIAL_API_KEY
+    except ModuleNotFoundError as exc:
+        if exc.name != "recall.secrets":
+            raise
 
-    use_commercial_api = True
-except ImportError:
-    use_commercial_api = False
 
-
-if use_commercial_api:
+if FMI_COMMERCIAL_API_KEY:
     WMS_MAP = f"https://wms.fmi.fi/fmi-apikey/{FMI_COMMERCIAL_API_KEY}/geoserver/wms"
     BASEMAP = (
         dl.WMSTileLayer(

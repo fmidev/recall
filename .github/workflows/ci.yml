@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.3"
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv sync --locked --extra test --extra dev
+      - run: uv run --locked ruff check src tests migrations
+      - run: uv run --locked pytest -m "not integration"
+      - name: Check tile dependency export
+        run: |
+          uv export --locked --only-group tile --no-emit-project --output-file terracotta/requirements.txt
+          git diff --exit-code -- terracotta/requirements.txt
+      - name: Build distribution
+        run: uv build
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: recall
+          POSTGRES_PASSWORD: recall
+          POSTGRES_DB: recall_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U recall -d recall_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RECALL_TEST_DB_URI: postgresql://recall:recall@localhost:5432/recall_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.3"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --extra test
+      - run: uv run --locked pytest -m integration

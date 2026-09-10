@@ -7,6 +7,11 @@ Events can be filtered by tags (not yet implemented). A radar animation is shown
 
 ## Deployment
 
+Python 3.12 or newer is required. Container builds use Python 3.12 and locked
+dependencies; the web/worker and tile server use the same Terracotta version.
+Compose waits for PostgreSQL and Redis health checks. This checks service readiness,
+not application migration state; the explicit database setup below is still required.
+
 ### In production
 
 Build and run the production version using docker-compose or podman-compose:
@@ -66,14 +71,46 @@ cancel earlier work. Preparation feedback describes the latest completed job;
 retry results do not accumulate obsolete failures. Results are session UI feedback,
 not a durable job history.
 
-## Tests
+## Development checks
 
-Install the project and its test dependencies in a virtual environment:
+Use [uv](https://docs.astral.sh/uv/) to reproduce the committed dependency resolution:
 
 ```sh
-python -m venv .venv
-.venv/bin/python -m pip install -e '.[test]'
-.venv/bin/python -m pytest -m 'not integration'
+uv sync --locked --python 3.12 --extra test --extra dev
+uv run --locked pytest -m 'not integration'
+uv run --locked ruff check src tests migrations
 ```
 
 Unit tests do not need the running stack or network access.
+Integration tests use an explicitly configured disposable PostGIS database; see the
+[migration guide](docs/database-migrations.md#disposable-postgis-integration-tests).
+GitHub Actions runs unit tests/lint on Python 3.12 and 3.14, PostGIS integration
+tests on 3.12, and distribution/dependency-export checks.
+The existing Hatch mypy environment remains available, but is not yet a passing
+type-checking baseline or CI gate.
+
+Use `uv run --locked ruff format <changed-files>` for formatting touched Python
+files. Do not reformat unrelated files as part of a feature change.
+
+### Dependency updates
+
+Edit `pyproject.toml`, resolve intentionally, and regenerate the tile server's
+hashed requirements from the same lock:
+
+```sh
+uv lock
+uv export --locked --only-group tile --no-emit-project --output-file terracotta/requirements.txt
+```
+
+For intentional upgrades, use `uv lock --upgrade-package <package>` (or `--upgrade`
+for a coordinated update) before exporting. Commit both lock artifacts with
+manifest changes, run the checks, and rebuild affected images. Terracotta upgrades
+also require checking database-format compatibility. Do not edit the generated
+tile requirements by hand. Python/uv image versions are explicit in the Dockerfiles.
+
+Local secrets are excluded from wheels, source distributions, and container build
+contexts. Supply the optional `FMI_COMMERCIAL_API_KEY` environment variable at
+runtime for commercial basemaps; it takes precedence over the legacy local
+`src/recall/secrets.py` development fallback. Do not bake credentials into application
+artifacts. The WMS key is necessarily sent to the browser for direct tile requests;
+use a key intended for that deployment.

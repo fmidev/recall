@@ -13,11 +13,21 @@ services:
     ports:
       - "5432:5432"
     restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d recalldb"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
   redis:
     image: "redis:alpine"
     ports:
       - "6379:6379"
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
   terracotta:
     build: ./terracotta
     image: terracotta:latest
@@ -35,7 +45,8 @@ services:
       - "8088:8088"
     restart: on-failure
     depends_on:
-      - db
+      db:
+        condition: service_healthy
   celery_worker:
     build:
       context: .
@@ -53,9 +64,12 @@ services:
       - /tmp/recall:/tmp/recall:z
     restart: on-failure
     depends_on:
-      - db
-      - redis
-      - terracotta
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      terracotta:
+        condition: service_started
   web:
     build:
       context: .
@@ -70,14 +84,19 @@ services:
       PREVENT_DB_URI: postgresql://postgres:postgres@db:5432/recalldb
       TC_DB_URI: postgresql://postgres:postgres@db:5432/terracotta
       TC_URL: http://localhost:8088
+      FMI_COMMERCIAL_API_KEY: ${FMI_COMMERCIAL_API_KEY:-}
       TC_EXTRA_CMAP_FOLDER: /tmp/recall/colormaps
     volumes:
       - /tmp/recall:/tmp/recall:z
     restart: on-failure
     depends_on:
-      - db
-      - redis
-      - celery_worker
-      - terracotta
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
+      terracotta:
+        condition: service_started
 volumes:
   db_data:

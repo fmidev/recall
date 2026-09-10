@@ -46,13 +46,16 @@ not a local archive of raw observations.
 
 | Location | Responsibility |
 | --- | --- |
-| [src/recall/app.py](src/recall/app.py) | App factory, module-level Dash/Flask/Celery instances, explicit callback imports, startup and event-save/ingestion callbacks |
+| [src/recall/app.py](src/recall/app.py) | App factory, Dash/Flask/Celery instances, callback/task/CLI registration |
 | [src/recall/layout.py](src/recall/layout.py) | Component tree, IDs, stores, forms, basemaps |
 | [src/recall/aios.py](src/recall/aios.py) | Reusable playback slider and its callbacks |
 | [src/recall/callbacks/](src/recall/callbacks/) | Event selection/deletion, tags, map rendering, TOML export |
 | [src/recall/database/models.py](src/recall/database/models.py) | ORM models, relationships, initial radar/tag seeds |
 | [src/recall/database/queries.py](src/recall/database/queries.py) | Event operations, overlap checks, startup setup, export records |
 | [src/recall/database/__init__.py](src/recall/database/__init__.py) | Shared scan timestamp generation |
+| [src/recall/domain.py](src/recall/domain.py), [src/recall/selection.py](src/recall/selection.py) | Interval validation and saved scan identity shared by the UI |
+| [src/recall/tasks.py](src/recall/tasks.py) | Independent Celery imagery jobs; no browser supersession/cancellation |
+| [src/recall/database/cli.py](src/recall/database/cli.py) | Explicit seed and read-only legacy baseline verification |
 | [src/recall/terracotta/](src/recall/terracotta/) | S3 path construction, metadata ingestion, tile URLs |
 | [src/recall/utils.py](src/recall/utils.py), [src/recall/visuals.py](src/recall/visuals.py) | Timeline labels and display colormap helpers |
 | [terracotta/](terracotta/) | Separate tile-server image, dependencies, generated colormaps |
@@ -99,7 +102,7 @@ not a local archive of raw observations.
   and consumer together, including `events-update-signal` and `tag-update-signal`.
   Reuse AIO ID helpers (`component`, `subcomponent`, `aio_id`) and existing `MATCH`/`ALL`
   patterns. Preserve intentional `PreventUpdate`, initial-call, and duplicate-output behavior.
-- Keep slow S3/raster work in Celery background callbacks, with meaningful progress and
+- Keep slow S3/raster work in Celery tasks, with meaningful progress and
   running-state feedback. Imagery preparation uses independent tasks in `tasks.py`,
   enqueued/polled by `callbacks/ingestion.py`, not superseding Dash background callbacks.
   Worker database access needs a Flask application context.
@@ -110,19 +113,18 @@ not a local archive of raw observations.
 - For new/touched code, favor clear names, small functions, useful type hints,
   parameterized SQLAlchemy queries, and public dependency APIs. Prefer modern
   SQLAlchemy select/session APIs over extending legacy `Query.get` usage.
-  Existing private Terracotta calls and broad exception handlers are not patterns to copy.
+  Use public Terracotta APIs; do not initialize incompatible databases on read errors.
 - Catch specific expected errors, preserve diagnostic context, and surface failures
   through logging and appropriate UI feedback. Missing observations are not equivalent
   to successful ingestion; avoid success-shaped fallbacks and unbounded retries.
-- Follow Black-style formatting without reformatting unrelated code. There is no
-  configured formatter/linter pipeline yet. Add dependencies or tooling only when
-  justified by the task, and document how to use them.
-- App images use Python 3.12, but package metadata still declares Python >=3.8.
-  Do not silently introduce a newer minimum; reconcile metadata/runtime support
-  explicitly when modernizing. The tile-server image has a floating Python base.
-- Dependency declarations are separate for the app and tile server. Coordinate
-  Terracotta upgrades across both and check database compatibility; dependencies
-  currently are not locked.
+- Use Ruff for linting and Black-compatible formatting of touched files; avoid
+  unrelated formatting churn. CI enforces the configured lint rules.
+- Python >=3.12 is supported. App and tile-server images use an explicit Python
+  3.12 patch release; CI exercises Python 3.12 and 3.14.
+- `uv.lock` is the shared dependency resolution. The `tile` dependency group is
+  exported with hashes to `terracotta/requirements.txt` for its separate build context.
+  Coordinate Terracotta upgrades across both services and check database compatibility.
+  See README for lock/export commands; never hand-edit the generated requirements.
 
 ## Development and configuration
 
@@ -155,12 +157,15 @@ production uses `gunicorn recall.app:server`. Do not expose the debug server pub
 | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | Redis task queue and results |
 | `TC_EXTRA_CMAP_FOLDER` | Colormaps shared through `/tmp/recall` |
 | `AWS_NO_SIGN_REQUEST` | Unsigned public S3 raster access |
+| `FMI_COMMERCIAL_API_KEY` | Optional commercial basemap key, supplied at runtime |
 
 Compose service names are container-network addresses. `TC_URL` must resolve from
 the **browser**; `localhost:8088` only works when the browser is on the serving host.
 Use environment configuration rather than hardcoding deployment-specific hosts.
-Optional commercial basemaps read `FMI_COMMERCIAL_API_KEY` from ignored
-`src/recall/secrets.py`; without it, the app uses the default OpenStreetMap layer.
+Optional commercial basemaps read the `FMI_COMMERCIAL_API_KEY` environment variable,
+with ignored `src/recall/secrets.py` retained only as a local development fallback.
+Without a key, the app uses OpenStreetMap. Build artifacts exclude local secrets;
+supply deployment credentials at runtime, not through source or images.
 Never commit keys or expose them in logs, screenshots, or generated artifacts.
 Do not assume ignored files are excluded from image or wheel builds.
 
@@ -193,16 +198,17 @@ Do not assume ignored files are excluded from image or wheel builds.
 
 ## Validation and completion
 
-Pytest unit tests live in `tests`; install `.[test]` and run
-`python -m pytest -m 'not integration'`. There is not yet a CI workflow.
+Run `uv sync --locked --python 3.12 --extra test --extra dev`, then
+`uv run --locked pytest -m 'not integration'` and
+`uv run --locked ruff check src tests migrations`. CI also runs disposable
+PostGIS integration tests, distribution builds, and tile lock-export checks.
 [pyproject.toml](pyproject.toml) includes a Hatch mypy environment and coverage settings,
 but these are not evidence of a passing type-checking baseline. If Hatch is available,
 `hatch run types:check src/recall` scopes the existing type command to actual sources
 (pass explicit paths for targeted checks).
 
 - Run the smallest relevant checks available. For behavior changes, add focused
-  regression tests where feasible; if introducing the first test setup, keep it minimal
-  and document the invocation. Separate pure unit tests from service-dependent tests.
+  regression tests. Separate pure unit tests from service-dependent tests.
 - Useful test boundaries are timestamp generation, interval validation, S3/tile URL
   construction, product normalization, and export records. Mock network I/O in unit
   tests; use a disposable PostGIS database for spatial/ORM integration, not SQLite as
