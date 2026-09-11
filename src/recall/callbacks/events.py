@@ -13,7 +13,7 @@ from recall.utils import timestamp_marks
 from recall.database.queries import browse_events, save_event
 from recall.domain import EventValidationError
 from recall.database.queries import get_coords
-from recall.selection import event_snapshot, selected_scan
+from recall.selection import event_snapshot
 
 
 logger = logging.getLogger(__name__)
@@ -297,20 +297,3 @@ def update_slider_marks(selection):
     timestamps = [datetime.fromisoformat(value) for value in selection["timestamps"]]
     marks = timestamp_marks(timestamps)
     return marks, len(timestamps) - 1, 0, False, False
-
-
-@callback(
-    Output("download-h5-link", "children"),
-    Output("download-h5-link", "href"),
-    Input("selected-event", "data"),
-    Input(PlaybackSliderAIO.ids.slider("playback"), "value"),
-)
-def update_h5_download_link(selection, slider_val):
-    """Update the HDF5 download link based on currently viewed scan."""
-    scan = selected_scan(selection, slider_val)
-    if scan is None:
-        return "", "#"
-    date_str = scan.timestamp.strftime("%Y%m%d%H%M")
-    filename = f"{date_str}_radar.polar.{scan.radar}.h5"
-    href = f"http://dev.tutka.fmi.fi/nutshell/NutShell?product={filename}"
-    return filename, href

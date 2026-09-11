@@ -231,6 +231,12 @@ def summarize_jobs(jobs):
         "active_jobs": [job["id"] for job in active],
         "job_id": latest["id"] if latest else None,
         "revision": revision,
+        "event_revisions": {
+            str(event_id): hashlib.sha256(
+                json.dumps(outcome, sort_keys=True).encode()
+            ).hexdigest()[:20]
+            for event_id, outcome in revisions.items()
+        },
         "history_revision": hashlib.sha256(
             json.dumps(jobs, sort_keys=True).encode()
         ).hexdigest()[:20],

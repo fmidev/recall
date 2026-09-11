@@ -49,6 +49,7 @@ not a local archive of raw observations.
 | [src/recall/app.py](src/recall/app.py) | App factory, Dash/Flask/Celery instances, callback/task/CLI registration |
 | [src/recall/layout.py](src/recall/layout.py) | Component tree, IDs, stores, forms, basemaps |
 | [src/recall/aios.py](src/recall/aios.py) | Reusable playback slider and its callbacks |
+| [src/recall/assets/playback.js](src/recall/assets/playback.js) | Browser-side playback clock, visibility and frame details |
 | [src/recall/callbacks/](src/recall/callbacks/) | Event selection/deletion, tags, map rendering, TOML export |
 | [src/recall/database/models.py](src/recall/database/models.py) | ORM models, relationships, initial radar/tag seeds |
 | [src/recall/database/queries.py](src/recall/database/queries.py) | Event operations, overlap checks, startup setup, export records |
@@ -105,6 +106,13 @@ not a local archive of raw observations.
   and consumer together, including `events-update-signal` and `tag-update-signal`.
   Reuse AIO ID helpers (`component`, `subcomponent`, `aio_id`) and existing `MATCH`/`ALL`
   patterns. Preserve intentional `PreventUpdate`, initial-call, and duplicate-output behavior.
+- Playback deliberately retains a tile layer for every timestep and preloads
+  hidden frames. Do not replace this with one changing tile URL: non-COG sources
+  make on-demand frames visibly stutter. Frame switching is browser-side opacity,
+  not reconstruction of `map.children`. Preserve per-event cache invalidation;
+  annotation edits and unrelated jobs must not discard loaded frames.
+  Validate warm playback with actual browser tile-request counts and retained DOM
+  nodes, not just a layer-count or callback unit test. Panning/zooming may fetch new tiles.
 - Keep slow S3/raster work in Celery tasks, with meaningful progress and
   running-state feedback. Imagery preparation uses independent tasks in `tasks.py`,
   enqueued/polled by `callbacks/ingestion.py`, not superseding Dash background callbacks.

@@ -1,13 +1,24 @@
 import logging
+import hashlib
+import json
 
-from dash import callback, Output, Input
+from dash import (
+    callback,
+    clientside_callback,
+    ClientsideFunction,
+    Output,
+    Input,
+    State,
+    ALL,
+    no_update,
+)
 import dash_leaflet as dl
 
 from recall.aios import PlaybackSliderAIO
 from recall.layout import BASEMAP
 from recall.terracotta.client import get_singleband_url
 from recall.visuals import cmap2hex
-from recall.selection import selected_scan
+from recall.selection import selected_scan, frame_details
 from recall.terracotta.ingest import get_driver
 
 
@@ -50,60 +61,53 @@ def load_availability(selection, _):
 
 
 @callback(
-    Output("scan-feedback", "children"),
-    Output("scan-feedback", "is_open"),
-    Input("selected-event", "data"),
-    Input(PlaybackSliderAIO.ids.slider("playback"), "value"),
-    Input("scan-availability", "data"),
-)
-def scan_feedback(selection, slider_val, availability):
-    scan = selected_scan(selection, slider_val)
-    if scan is None:
-        return "", False
-    if availability and availability.get("error"):
-        return availability["error"], True
-    if not availability or availability.get("event_id") != selection["id"]:
-        return "Checking imagery availability...", True
-    if scan.timestamp.strftime("%Y%m%d%H%M") not in availability["available"]:
-        return (
-            "This scan is not prepared or is unavailable. A blank layer does not "
-            "indicate no precipitation. Use Prepare imagery to retry.",
-            True,
-        )
-    return "", False
-
-
-@callback(
     Output("map", "children"),
-    Output("map-timestamp", "children"),
+    Output("radar-layer-state", "data"),
+    Output("radar-frame-manifest", "data"),
     Input("selected-event", "data"),
-    Input(PlaybackSliderAIO.ids.slider("playback"), "value"),
     Input("ingestion-result", "data"),
+    State("radar-layer-state", "data"),
+    State(PlaybackSliderAIO.ids.slider("playback"), "value"),
 )
-def update_radar_layers(selection, slider_val, ingestion_result=None):
-    """Update the radar image URL based on the selected event."""
+def update_radar_layers(selection, ingestion_result=None, current=None, slider_val=0):
+    """Keep every timestep mounted; playback only changes client-side opacity."""
     cmap = "gist_ncar"
+    state = None
+    if selection and selection.get("timestamps"):
+        state = {
+            "event_id": selection["id"],
+            "radar": selection["radar"],
+            "timestamps": selection["timestamps"],
+            "revision": (ingestion_result or {})
+            .get("event_revisions", {})
+            .get(str(selection["id"]), "initial"),
+        }
+    if state == current:
+        return no_update, no_update, no_update
     layers = list(BASEMAP)
-    scan = selected_scan(selection, slider_val)
-    if scan is None:
-        return layers, ""
-    product = "DBZH"
-    url = get_singleband_url(
-        scan.timestamp,
-        scan.radar,
-        product,
-        colormap=cmap + "_cut",
-        stretch_range="[0,255]",
-    )
-    revision = "initial"
-    if ingestion_result and any(
-        event["event_id"] == selection["id"]
-        for event in ingestion_result.get("events", [])
-    ):
-        revision = ingestion_result["revision"]
-    layers.append(
-        dl.TileLayer(id=f"radar-layer-{revision}", url=url, opacity=RADAR_LAYER_OPACITY)
-    )
+    if state is None:
+        return layers, None, None
+    series = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()[:20]
+    active = selected_scan(selection, slider_val)
+    frames = []
+    for index in range(len(selection["timestamps"])):
+        scan = selected_scan(selection, index)
+        frames.append(frame_details(scan))
+        layers.append(
+            dl.TileLayer(
+                id={"type": "radar-scan", "series": series, "index": index},
+                url=get_singleband_url(
+                    scan.timestamp,
+                    scan.radar,
+                    "DBZH",
+                    colormap=cmap + "_cut",
+                    stretch_range="[0,255]",
+                ),
+                opacity=RADAR_LAYER_OPACITY if index == active.index else 0,
+                updateWhenIdle=True,
+                updateWhenZooming=False,
+            )
+        )
     layers.append(
         dl.Colorbar(
             id="cbar",
@@ -116,7 +120,23 @@ def update_radar_layers(selection, slider_val, ingestion_result=None):
             position="topright",
         )
     )
-    return layers, scan.timestamp.strftime("%Y-%m-%d %H:%M UTC")
+    return layers, state, {**state, "series": series, "frames": frames}
+
+
+clientside_callback(
+    ClientsideFunction(namespace="recall", function_name="renderFrame"),
+    Output({"type": "radar-scan", "series": ALL, "index": ALL}, "opacity"),
+    Output("map-timestamp", "children"),
+    Output("download-h5-link", "children"),
+    Output("download-h5-link", "href"),
+    Output("scan-feedback", "children"),
+    Output("scan-feedback", "is_open"),
+    Input(PlaybackSliderAIO.ids.slider("playback"), "value"),
+    Input({"type": "radar-scan", "series": ALL, "index": ALL}, "id"),
+    Input("radar-frame-manifest", "data"),
+    Input("selected-event", "data"),
+    Input("scan-availability", "data"),
+)
 
 
 @callback(

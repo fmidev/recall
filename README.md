@@ -85,6 +85,25 @@ PostgreSQL and visible in Maintenance across browser reloads. Retry results do n
 accumulate obsolete failures. See [durable imagery preparation](docs/ingestion-jobs.md)
 for interrupted-worker handling and safe deployment of the new task protocol.
 
+## Playback and preloading
+
+Selecting an event creates a retained tile layer for **every timestep**, allowing
+the browser to preload scans for the current map view. Playback and scrubbing
+switch layer opacity in the browser; they do not replace layers or request a new
+image just because a timestep becomes active. The timestamp, download link and
+availability warning switch with the same frame, without a Python callback round trip.
+
+Initial loading can still be slow for source GeoTIFFs that are not cloud-optimized.
+Allow preloading to finish for smooth warm playback. Moving or zooming the map
+requests tiles for the new view; selecting another case replaces the retained
+layers. Long cases trade browser memory and upfront tile requests for smooth
+animation. Annotation-only edits and unrelated ingestion jobs do not invalidate
+the loaded scans.
+
+**Prepare imagery** registers archive metadata; it is not a tile-preloading button.
+Tile preloading happens automatically when viewing a case. A completed preparation
+job for the selected case refreshes its layers so previously missing tiles can load.
+
 ## Development checks
 
 Use [uv](https://docs.astral.sh/uv/) to reproduce the committed dependency resolution:

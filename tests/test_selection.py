@@ -7,7 +7,7 @@ import pytest
 from dash import no_update
 
 from recall.callbacks import events, map as map_callbacks, tags
-from recall.selection import event_snapshot, selected_scan
+from recall.selection import event_snapshot, selected_scan, frame_details
 from recall.utils import timestamp_marks
 
 
@@ -38,54 +38,74 @@ def test_missing_selection_has_no_scan():
     assert selected_scan({"error": "deleted"}, 0) is None
 
 
-def test_missing_metadata_is_not_presented_as_no_precipitation(selection):
-    message, visible = map_callbacks.scan_feedback(
-        selection, 0, {"event_id": 1, "available": []}
-    )
-    assert visible
-    assert "does not indicate no precipitation" in message
-    assert map_callbacks.scan_feedback(
-        selection, 0, {"event_id": 1, "available": ["202609101000"]}
-    ) == ("", False)
-
-
 def test_map_and_download_use_same_saved_scan(selection):
-    layers, label = map_callbacks.update_radar_layers(selection, 99)
+    layers, _, manifest = map_callbacks.update_radar_layers(selection, slider_val=99)
     radar_layers = [
         layer
         for layer in layers
         if isinstance(layer, dl.TileLayer)
-        and getattr(layer, "id", "").startswith("radar-layer-")
+        and isinstance(getattr(layer, "id", None), dict)
+        and layer.id["type"] == "radar-scan"
     ]
-    assert len(radar_layers) == 1
-    assert "/202609101005/fikor/DBZH/" in radar_layers[0].url
-    filename, href = events.update_h5_download_link(selection, 99)
-    assert filename == "202609101005_radar.polar.fikor.h5"
-    assert filename in href
-    assert label == "2026-09-10 10:05 UTC"
+    assert len(radar_layers) == 2
+    assert "/202609101005/fikor/DBZH/" in radar_layers[1].url
+    assert [layer.opacity for layer in radar_layers] == [0, 0.8]
+    frame = manifest["frames"][1]
+    assert frame["download_name"] == "202609101005_radar.polar.fikor.h5"
+    assert frame["download_name"] in frame["download_url"]
+    assert frame["label"] == "2026-09-10 10:05 UTC"
 
 
-def test_long_event_still_has_only_one_radar_layer(selection):
+def test_every_timestep_is_retained_for_preloading(selection):
     selection["timestamps"] = [
         (datetime(2026, 9, 10) + timedelta(minutes=5 * i)).isoformat()
         for i in range(288)
     ]
-    layers, _ = map_callbacks.update_radar_layers(selection, 100)
-    assert (
-        sum(getattr(layer, "id", "").startswith("radar-layer-") for layer in layers)
-        == 1
-    )
+    layers, state, manifest = map_callbacks.update_radar_layers(selection)
+    scans = [layer for layer in layers if isinstance(getattr(layer, "id", None), dict)]
+    assert len(scans) == len(manifest["frames"]) == 288
+    assert [layer.id["index"] for layer in scans] == list(range(288))
+    assert all(layer.updateWhenIdle and not layer.updateWhenZooming for layer in scans)
+    assert map_callbacks.update_radar_layers(
+        selection, current=state, slider_val=100
+    ) == (no_update, no_update, no_update)
 
 
 def test_preparation_completion_replaces_selected_tile_layer(selection):
-    before, _ = map_callbacks.update_radar_layers(selection, 0)
-    after, _ = map_callbacks.update_radar_layers(
-        selection, 0, {"events": [{"event_id": 1}], "revision": "completed-job"}
+    before, state, first_manifest = map_callbacks.update_radar_layers(selection)
+    after, _, manifest = map_callbacks.update_radar_layers(
+        selection, {"event_revisions": {"1": "completed-job"}}, state
     )
-    assert any(getattr(layer, "id", "") == "radar-layer-initial" for layer in before)
-    assert any(
-        getattr(layer, "id", "") == "radar-layer-completed-job" for layer in after
-    )
+    assert len(before) == len(after)
+    assert first_manifest["series"] != manifest["series"]
+
+
+def test_unrelated_jobs_and_annotation_changes_do_not_discard_preloaded_tiles(
+    selection,
+):
+    _, state, _ = map_callbacks.update_radar_layers(selection)
+    selection["description"] = "Updated annotation"
+    selection["tag_ids"] = [17]
+    assert map_callbacks.update_radar_layers(
+        selection, {"event_revisions": {"2": "unrelated-job"}}, state
+    ) == (no_update, no_update, no_update)
+
+
+def test_changing_intervals_or_events_replaces_the_layer_set(selection):
+    _, state, manifest = map_callbacks.update_radar_layers(selection)
+    selection["timestamps"] = selection["timestamps"][:1]
+    _, new_state, changed = map_callbacks.update_radar_layers(selection, current=state)
+    assert manifest["series"] != changed["series"]
+    assert len(changed["frames"]) == 1
+    selection["id"] = 2
+    _, _, next_event = map_callbacks.update_radar_layers(selection, current=new_state)
+    assert next_event["series"] != changed["series"]
+
+
+def test_frame_details_use_explicit_utc_labels(selection):
+    frame = frame_details(selected_scan(selection, 0))
+    assert frame["timestamp_key"] == "202609101000"
+    assert frame["label"] == "2026-09-10 10:00 UTC"
 
 
 def test_switching_event_resets_and_pauses_playback(selection):
@@ -112,7 +132,10 @@ def test_empty_state_clears_forms_and_disables_playback():
         True,
     )
     assert events.update_slider_marks(None) == ({}, 1, 0, False, True)
-    assert events.update_h5_download_link(None, 99) == ("", "#")
+    _, state, manifest = map_callbacks.update_radar_layers(
+        None, current={"event_id": 1}
+    )
+    assert state is None and manifest is None
 
 
 def test_deleted_last_event_clears_dropdown(monkeypatch):

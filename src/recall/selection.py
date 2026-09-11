@@ -49,3 +49,15 @@ def selected_scan(selection, slider_value):
     value = slider_value if isinstance(slider_value, (int, float)) else 0
     index = min(max(int(value) if isfinite(value) else 0, 0), len(times) - 1)
     return Scan(selection["radar"], datetime.fromisoformat(times[index]), index)
+
+
+def frame_details(scan: Scan):
+    """Precompute display/download strings once, not on every playback tick."""
+    key = scan.timestamp.strftime("%Y%m%d%H%M")
+    filename = f"{key}_radar.polar.{scan.radar}.h5"
+    return {
+        "timestamp_key": key,
+        "label": scan.timestamp.strftime("%Y-%m-%d %H:%M UTC"),
+        "download_name": filename,
+        "download_url": f"http://dev.tutka.fmi.fi/nutshell/NutShell?product={filename}",
+    }

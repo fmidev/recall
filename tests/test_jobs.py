@@ -132,7 +132,9 @@ def test_reload_uses_database_not_browser_or_celery_results(monkeypatch):
     assert (value, maximum, label) == (2, 5, "2/5 · 1 active jobs")
     assert rendered
     assert ingestion.polling_state([], result) == (False, "my-3")
-    again, *_, rendered_again = ingestion.poll_imagery(1, ["unknown-browser-id"], result)
+    again, *_, rendered_again = ingestion.poll_imagery(
+        1, ["unknown-browser-id"], result
+    )
     assert again is no_update
     assert rendered_again is no_update
     read_redis.assert_not_called()
@@ -158,6 +160,15 @@ def test_successful_retry_replaces_previous_missing_scan_results():
     assert result["status"] == "ready"
     assert result["events"][0]["missing"] == 0
     assert "1 scans available, 0 missing" in result["message"]
+
+
+def test_other_event_results_do_not_invalidate_this_events_tiles():
+    before, _ = ingestion.summarize_jobs([job("first", event_id=1)])
+    after, _ = ingestion.summarize_jobs(
+        [job("second", event_id=2), job("first", event_id=1)]
+    )
+    assert before["event_revisions"]["1"] == after["event_revisions"]["1"]
+    assert "2" in after["event_revisions"]
 
 
 def test_latest_failed_job_retains_completed_event_results():
