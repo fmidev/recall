@@ -10,6 +10,7 @@ from dash import (
     Input,
     State,
     ALL,
+    ctx,
     no_update,
 )
 import dash_leaflet as dl
@@ -66,27 +67,79 @@ def load_availability(selection, _):
     Output("radar-frame-manifest", "data"),
     Input("selected-event", "data"),
     Input("ingestion-result", "data"),
+    Input("map", "center"),
+    Input("map", "zoom"),
+    Input("map-user-interaction", "data"),
     State("radar-layer-state", "data"),
     State(PlaybackSliderAIO.ids.slider("playback"), "value"),
 )
-def update_radar_layers(selection, ingestion_result=None, current=None, slider_val=0):
+def prepare_radar_layers(
+    selection, ingestion_result, center, zoom, interaction, current, slider_val
+):
+    # trackViewport reports center/zoom on moveend, not each animation step.
+    # A cancelled previous flight can also emit moveend at the old location.
+    ready = ctx.triggered_id == "map-user-interaction" or at_event_view(
+        selection, center, zoom
+    )
+    return update_radar_layers(
+        selection, ingestion_result, current, slider_val, viewport_ready=ready
+    )
+
+
+def at_event_view(selection, center, zoom):
+    if not selection or not selection.get("coordinates"):
+        return True
+    if isinstance(center, dict):
+        center = [center.get("lat"), center.get("lng")]
+    return (
+        isinstance(center, (list, tuple))
+        and len(center) == 2
+        and all(
+            isinstance(value, (int, float)) and abs(value - target) < 1e-6
+            for value, target in zip(center, selection["coordinates"])
+        )
+        and zoom == 8
+    )
+
+
+def update_radar_layers(
+    selection, ingestion_result=None, current=None, slider_val=0, *, viewport_ready=True
+):
     """Keep every timestep mounted; playback only changes client-side opacity."""
     cmap = "gist_ncar"
     state = None
     if selection and selection.get("timestamps"):
+        cached = current.get("pending", current) if current else {}
+        previous_revision = (
+            cached.get("revision", "initial")
+            if cached.get("event_id") == selection["id"]
+            and cached.get("radar") == selection["radar"]
+            else "initial"
+        )
         state = {
             "event_id": selection["id"],
             "radar": selection["radar"],
             "timestamps": selection["timestamps"],
             "revision": (ingestion_result or {})
             .get("event_revisions", {})
-            .get(str(selection["id"]), "initial"),
+            .get(str(selection["id"]), previous_revision),
         }
     if state == current:
         return no_update, no_update, no_update
     layers = list(BASEMAP)
     if state is None:
         return layers, None, None
+    new_location = (
+        not current
+        or "pending" in current
+        or current.get("event_id") != state["event_id"]
+        or current.get("radar") != state["radar"]
+    )
+    if new_location and not viewport_ready:
+        pending = {"pending": state}
+        if current == pending:
+            return no_update, no_update, no_update
+        return layers, pending, None
     series = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()[:20]
     active = selected_scan(selection, slider_val)
     frames = []

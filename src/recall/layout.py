@@ -309,6 +309,7 @@ def create_layout():
             dcc.Store(id="selected-event"),
             dcc.Store(id="radar-layer-state"),
             dcc.Store(id="radar-frame-manifest"),
+            dcc.Store(id="map-user-interaction"),
             dcc.Store(id="scan-availability"),
             dcc.Store(id="ingestion-jobs", data=[]),
             dcc.Interval(id="ingestion-poll", interval=3000, disabled=False),

@@ -83,7 +83,9 @@ def test_preparation_completion_replaces_selected_tile_layer(selection):
 def test_unrelated_jobs_and_annotation_changes_do_not_discard_preloaded_tiles(
     selection,
 ):
-    _, state, _ = map_callbacks.update_radar_layers(selection)
+    _, state, _ = map_callbacks.update_radar_layers(
+        selection, {"event_revisions": {"1": "previously-completed-job"}}
+    )
     selection["description"] = "Updated annotation"
     selection["tag_ids"] = [17]
     assert map_callbacks.update_radar_layers(
@@ -106,6 +108,54 @@ def test_frame_details_use_explicit_utc_labels(selection):
     frame = frame_details(selected_scan(selection, 0))
     assert frame["timestamp_key"] == "202609101000"
     assert frame["label"] == "2026-09-10 10:00 UTC"
+
+
+def test_new_case_waits_for_viewport_before_preloading(selection):
+    layers, pending, manifest = map_callbacks.update_radar_layers(
+        selection, viewport_ready=False
+    )
+    assert manifest is None
+    assert "pending" in pending
+    assert not any(isinstance(getattr(layer, "id", None), dict) for layer in layers)
+    assert map_callbacks.update_radar_layers(
+        selection, current=pending, viewport_ready=False
+    ) == (no_update, no_update, no_update)
+    _, state, manifest = map_callbacks.update_radar_layers(selection, current=pending)
+    assert manifest["event_id"] == selection["id"]
+    assert "pending" not in state
+
+
+def test_same_case_refresh_does_not_force_a_panned_map_back_to_radar(selection):
+    _, state, _ = map_callbacks.update_radar_layers(selection)
+    _, _, manifest = map_callbacks.update_radar_layers(
+        selection, {"event_revisions": {"1": "new"}}, state, viewport_ready=False
+    )
+    assert manifest["event_id"] == selection["id"]
+
+
+def test_event_view_accepts_leaflet_center_shapes(selection):
+    assert map_callbacks.at_event_view(selection, [60, 21], 8)
+    assert map_callbacks.at_event_view(selection, {"lat": 60, "lng": 21}, 8)
+    assert not map_callbacks.at_event_view(selection, [64, 26], 6)
+    assert not map_callbacks.at_event_view(selection, None, None)
+
+
+def test_interrupted_old_flight_does_not_start_wrong_view_prefetch(
+    selection, monkeypatch
+):
+    monkeypatch.setattr(map_callbacks, "ctx", SimpleNamespace(triggered_id="map"))
+    _, pending, manifest = map_callbacks.prepare_radar_layers(
+        selection, None, [64, 26], 6, None, None, 0
+    )
+    assert manifest is None
+    assert "pending" in pending
+    monkeypatch.setattr(
+        map_callbacks, "ctx", SimpleNamespace(triggered_id="map-user-interaction")
+    )
+    _, _, manifest = map_callbacks.prepare_radar_layers(
+        selection, None, [64, 26], 6, 1, pending, 0
+    )
+    assert manifest["event_id"] == selection["id"]
 
 
 def test_switching_event_resets_and_pauses_playback(selection):

@@ -47,3 +47,24 @@ window.dash_clientside.recall = Object.assign(window.dash_clientside.recall || {
             warning, Boolean(warning)];
     }
 });
+
+// A user may interrupt flyTo by dragging, using zoom controls, or scrolling.
+// Distinguish that choice from the old-location moveend emitted when flyTo restarts.
+(function () {
+    let lastWheel = -Infinity;
+    function userView(event) {
+        if (!(event.target instanceof Element) || !event.target.closest("#map")) return;
+        if (event.type === "keydown" && event.repeat) return;
+        if (event.type === "wheel") {
+            const now = performance.now();
+            if (now - lastWheel < 300) return;
+            lastWheel = now;
+        }
+        if (window.dash_clientside.set_props) {
+            window.dash_clientside.set_props("map-user-interaction", {data: Date.now()});
+        }
+    }
+    ["pointerdown", "wheel", "keydown"].forEach(type =>
+        document.addEventListener(type, userView, {capture: true, passive: true})
+    );
+})();

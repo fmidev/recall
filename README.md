@@ -92,6 +92,10 @@ the browser to preload scans for the current map view. Playback and scrubbing
 switch layer opacity in the browser; they do not replace layers or request a new
 image just because a timestep becomes active. The timestamp, download link and
 availability warning switch with the same frame, without a Python callback round trip.
+For a new case, preloading waits for the map's move to finish rather than fetching
+the case's tiles at the previous radar or intermediate zoom levels. Animated map
+movement is preserved; interacting with the map interrupts the wait and uses your
+chosen view.
 
 Initial loading can still be slow for source GeoTIFFs that are not cloud-optimized.
 Allow preloading to finish for smooth warm playback. Moving or zooming the map
